@@ -157,10 +157,10 @@ export const todoTools: Record<string, Tool> = {
       priority: z.enum(['all', 'high', 'medium', 'low']).optional(),
       tags: z.array(z.string()).optional(),
       overdue: z.enum(['all', 'yes', 'no']).optional(),
-      dueDateStart: z.string().optional(),
-      dueDateEnd: z.string().optional(),
-      completedDateStart: z.string().optional(),
-      completedDateEnd: z.string().optional(),
+      dueDateStart: z.string().nullable().optional(),
+      dueDateEnd: z.string().nullable().optional(),
+      completedDateStart: z.string().nullable().optional(),
+      completedDateEnd: z.string().nullable().optional(),
     }),
     execute: async (input: unknown) => {
       const { status, priority, tags, overdue, dueDateStart, dueDateEnd, completedDateStart, completedDateEnd } = input as {
@@ -168,10 +168,10 @@ export const todoTools: Record<string, Tool> = {
         priority?: 'all' | 'high' | 'medium' | 'low'
         tags?: string[]
         overdue?: 'all' | 'yes' | 'no'
-        dueDateStart?: string
-        dueDateEnd?: string
-        completedDateStart?: string
-        completedDateEnd?: string
+        dueDateStart?: string | null
+        dueDateEnd?: string | null
+        completedDateStart?: string | null
+        completedDateEnd?: string | null
       }
       const store = useTodoStore.getState()
       if (!store) return 'Error: TodoStore not initialized'
