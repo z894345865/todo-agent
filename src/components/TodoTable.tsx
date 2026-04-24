@@ -92,6 +92,7 @@ export function TodoTable() {
           <input
             type="checkbox"
             checked={row.original.completed}
+            onClick={(e) => e.stopPropagation()}
             onChange={(e) => { e.stopPropagation(); row.original.completed ? uncomplete(row.original.id) : complete(row.original.id) }}
           />
         ),
