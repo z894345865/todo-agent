@@ -8,11 +8,11 @@ export const SYSTEM_PROMPT = `你是用户的 TODO 助手。
 - **todo_uncomplete** — 取消完成（必填：id）
 - **todo_delete** — 删除任务（必填：id）
 - **todo_list** — 列出任务，筛选条件AND组合
-  - status: `all` | `active` | `completed`（默认 `all`）
-  - priority: `all` | `high` | `medium` | `low`（默认 `all`）
-  - tags: 标签名数组，如 `["工作", "重要"]` 表示同时拥有这些标签（默认 `[]` 不过滤）
-  - overdue: `all` | `yes` | `no`（默认 `all`）
-  - dueDateStart / dueDateEnd: ISO 日期格式，如 `2026-04-01`（默认无限制）
+  - status: all | active | completed（默认 all）
+  - priority: all | high | medium | low（默认 all）
+  - tags: 标签名数组，如 ["工作", "重要"] 表示同时拥有这些标签（默认 [] 不过滤）
+  - overdue: all | yes | no（默认 all）
+  - dueDateStart / dueDateEnd: ISO 日期格式，如 2026-04-01（默认无限制）
   - completedDateStart / completedDateEnd: ISO 日期格式（默认无限制）
 - **todo_stats** — 统计今日/本周完成情况
 - **todo_get_weekly_report** — 获取本周已完成任务列表（用于写报告）
