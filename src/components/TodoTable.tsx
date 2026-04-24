@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useReactTable, getCoreRowModel, getSortedRowModel, SortingState, ColumnDef, flexRender } from '@tanstack/react-table'
+import type { OnChangeFn } from '@tanstack/react-table'
 import { useTodoStore } from '../store'
 import { getTodoTags, getTagsByIds } from '../db'
 import { TagBadge } from './TagBadge'
@@ -25,16 +26,19 @@ export function TodoTable() {
   const [todoTagsMap, setTodoTagsMap] = useState<Record<string, Tag[]>>({})
 
   useEffect(() => {
+    let cancelled = false
     const load = async () => {
       const map: Record<string, Tag[]> = {}
       for (const t of todos) {
         const tagIds = await getTodoTags(t.id)
         const tagList = await getTagsByIds(tagIds)
+        if (cancelled) return
         map[t.id] = tagList
       }
-      setTodoTagsMap(map)
+      if (!cancelled) setTodoTagsMap(map)
     }
     load()
+    return () => { cancelled = true }
   }, [todos])
 
   // 筛选逻辑
@@ -120,7 +124,7 @@ export function TodoTable() {
         id: 'tags',
         header: '标签',
         cell: ({ row }) => {
-          const tids = (todoTagsMap[row.original.id] ?? []) as Tag[]
+          const tids = todoTagsMap[row.original.id] ?? []
           return (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
               {tids.map((t) => <TagBadge key={t.id} name={t.name} color={t.color} />)}
@@ -149,8 +153,8 @@ export function TodoTable() {
         id: 'description',
         accessorKey: 'description',
         header: '描述',
-        cell: ({ getValue }) => {
-          const desc = getValue() as string | undefined
+        cell: ({ row }) => {
+          const desc = row.original.description
           if (!desc) return <span style={{ color: '#ccc' }}>—</span>
           return (
             <span
@@ -166,11 +170,15 @@ export function TodoTable() {
     [todoTagsMap, complete, uncomplete]
   )
 
+  const handleSortingChange: OnChangeFn<SortingState> = (updater) => {
+    setSorting((prev) => (typeof updater === 'function' ? updater(prev) : updater))
+  }
+
   const table = useReactTable({
     data: sortedTodos,
     columns,
     state: { sorting },
-    onSortingChange: setSorting as any,
+    onSortingChange: handleSortingChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   })
