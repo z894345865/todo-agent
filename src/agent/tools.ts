@@ -105,8 +105,8 @@ export const todoTools: Record<string, Tool> = {
       id: z.string(),
       text: z.string().optional(),
       priority: z.enum(['high', 'medium', 'low']).optional(),
-      dueDate: z.string().optional(),
-      tags: z.array(z.string()).optional(),
+      dueDate: z.string().nullable().optional(),
+      tags: z.array(z.string()).nullable().optional(),
       description: z.string().optional(),
       completed: z.boolean().optional(),
     }),
@@ -115,8 +115,8 @@ export const todoTools: Record<string, Tool> = {
         id: string;
         text?: string;
         priority?: 'high' | 'medium' | 'low';
-        dueDate?: string;
-        tags?: string[];
+        dueDate?: string | null;
+        tags?: string[] | null;
         description?: string;
         completed?: boolean;
       }
@@ -127,7 +127,7 @@ export const todoTools: Record<string, Tool> = {
       const updated: any = { ...todo }
       if (text !== undefined) updated.text = text
       if (priority !== undefined) updated.priority = priority
-      if (dueDate !== undefined) updated.dueDate = new Date(dueDate).getTime()
+      if (dueDate != null) updated.dueDate = new Date(dueDate).getTime()
       if (description !== undefined) updated.description = description
       if (completed !== undefined) {
         updated.completed = completed
@@ -136,7 +136,7 @@ export const todoTools: Record<string, Tool> = {
 
       await db.updateTodo(updated)
 
-      if (tagNames !== undefined) {
+      if (tagNames != null) {
         await store.setTodoTags(todo.id, [])
         for (const name of tagNames) {
           const tag = store.tags.find((t: Tag) => t.name === name)
