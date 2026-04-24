@@ -224,7 +224,7 @@ size: 100,
   const rows = table.getRowModel().rows
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflowX: 'auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* 筛选栏 */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         {/* 优先级筛选 */}
@@ -285,7 +285,7 @@ size: 100,
       </div>
 
       {/* 表格 */}
-      <div style={{ border: '1px solid #eee', borderRadius: 8, overflow: 'hidden' }}>
+      <div style={{ border: '1px solid #eee', borderRadius: 8, overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             {headerGroups.map((headerGroup) => (
