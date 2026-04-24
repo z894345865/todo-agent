@@ -19,6 +19,7 @@ export function TagManager({ onClose }: TagManagerProps) {
   const [editing, setEditing] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editColor, setEditColor] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   const handleCreate = async () => {
     if (!newName.trim()) return
@@ -51,6 +52,7 @@ export function TagManager({ onClose }: TagManagerProps) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
+        onClick={(e) => e.stopPropagation()}
         style={{
           background: '#fff',
           borderRadius: 12,
@@ -117,12 +119,20 @@ export function TagManager({ onClose }: TagManagerProps) {
                   >
                     编辑
                   </button>
-                  <button
-                    onClick={() => handleDelete(tag)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 12 }}
-                  >
-                    删除
-                  </button>
+                  {deleteConfirm === tag.id ? (
+                    <>
+                      <span style={{ fontSize: 12, color: '#888' }}>确认?</span>
+                      <button onClick={() => handleDelete(tag)} style={{ color: '#EF4444', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer' }}>是</button>
+                      <button onClick={() => setDeleteConfirm(null)} style={{ color: '#888', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer' }}>否</button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setDeleteConfirm(tag.id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 12 }}
+                    >
+                      删除
+                    </button>
+                  )}
                 </>
               )}
             </div>
