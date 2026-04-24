@@ -2,6 +2,15 @@
 
 一个极简的 TODO 应用，集成了阿里开源的 [PageAgent](https://github.com/alibaba/page-agent)，AI 可以通过自然语言完成 TODO 的全部操作，并查询统计数据用于生成日报。
 
+## 快速开始
+
+### 克隆项目
+
+```bash
+git clone https://github.com/z894345865/todo-agent.git
+cd todo-agent
+```
+
 ## 功能特性
 
 - **手动操作** — 添加、完成、取消完成、删除任务
@@ -21,14 +30,13 @@
 
 ## 快速开始
 
-### 1. 安装依赖
+### 2. 安装依赖
 
 ```bash
-cd todo-with-agent
 npm install
 ```
 
-### 2. 配置 LLM Provider
+### 3. 配置 LLM Provider
 
 PageAgent 支持任意 OpenAI 兼容的 LLM API。
 
@@ -52,7 +60,7 @@ VITE_LLM_LANGUAGE=zh-CN
 | `VITE_LLM_MODEL` | 模型名称 | `qwen3.5-plus` |
 | `VITE_LLM_LANGUAGE` | AI 界面语言 | `zh-CN` |
 
-### 3. 启动开发服务器
+### 4. 启动开发服务器
 
 ```bash
 npm run dev
