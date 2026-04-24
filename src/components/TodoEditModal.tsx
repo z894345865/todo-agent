@@ -39,8 +39,10 @@ export function TodoEditModal({ todoId, onClose }: TodoEditModalProps) {
 
   const handleSave = async () => {
     if (!text.trim()) return
+    const currentTodo = store.todos.find((t) => t.id === todoId)
+    if (!currentTodo) return
     const updated = {
-      ...todo,
+      ...currentTodo,
       text: text.trim(),
       priority,
       dueDate: dueDate ? new Date(dueDate).getTime() : undefined,
