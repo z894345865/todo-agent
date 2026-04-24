@@ -165,7 +165,7 @@ export const todoTools: Record<string, Tool> = {
           const tagLine = tagStr ? `标签: ${tagStr}` : ''
           const dueStr = t.dueDate ? `截止: ${new Date(t.dueDate).toLocaleDateString('zh-CN')}` : ''
           const meta = [prioStr, tagLine, dueStr].filter(Boolean).join(' | ')
-          return `[${t.completed ? 'x' : ' '}] ${t.text}${meta ? ' | ' + meta : ''}`
+          return `[id: ${t.id}] [${t.completed ? 'x' : ' '}] ${t.text}${meta ? ' | ' + meta : ''}`
         })
       )
       return lines.join('\n')
