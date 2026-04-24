@@ -143,6 +143,8 @@ export const todoTools: Record<string, Tool> = {
           if (tag) await store.addTagToTodo(todo.id, tag.id)
         }
       }
+
+      await store.init()
       return `Updated: "${todo.text}"`
     },
   },
