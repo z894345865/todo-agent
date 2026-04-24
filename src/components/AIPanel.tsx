@@ -30,6 +30,9 @@ export function AIPanel() {
       customTools: todoTools,
     })
 
+    // Show the AI panel immediately (Panel hides itself by default on idle)
+    agent.panel.show()
+
     agentRef.current = agent
 
     // Subscribe to store changes and keep globalThis ref updated
