@@ -43,3 +43,5 @@ export interface ErrorMessage extends BaseMessage {
   type: 'error'
   content: string
 }
+
+export type Message = TextMessage | ToolCallMessage | ToolResultMessage | ErrorMessage
