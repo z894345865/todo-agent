@@ -39,8 +39,7 @@ inputSchema: z.object({
 | `status=completed` | `t.completed === true` |
 | `status=all` | 不过滤 |
 | `priority=high/medium/low` | `t.priority === value` |
-| `tags=[]` | 不过滤 |
-| `tags=[x,y]` | 任务必须拥有**所有**列表中的标签（AND 逻辑） |
+| `tags` | 默认为空列表 `[]`，不过滤；非空时任务必须拥有**所有**列表中的标签（AND 逻辑） |
 | `overdue=all` | 不过滤 |
 | `overdue=yes` | `!t.completed && t.dueDate && t.dueDate < now` |
 | `overdue=no` | `!t.completed && t.dueDate && t.dueDate >= now`，或 `t.completed` |
@@ -53,7 +52,18 @@ inputSchema: z.object({
 
 - `src/agent/tools.ts` — 修改 `todo_list` 的 inputSchema 和 execute 函数
 
-## 5. 向后兼容
+## 5. 默认值行为
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `status` | `all` | 不过滤 |
+| `priority` | `all` | 不过滤 |
+| `tags` | `[]` | 不过滤 |
+| `overdue` | `all` | 不过滤 |
+| `dueDateStart/dueDateEnd` | 无 | 不过滤；传了才生效 |
+| `completedDateStart/completedDateEnd` | 无 | 不过滤；传了才生效 |
+
+## 6. 向后兼容
 
 - 不传任何参数时默认列出全部任务（与当前行为一致）
 - 现有调用不受影响
