@@ -3,7 +3,7 @@ import { useTodoStore } from './store'
 import { StatsPanel } from './components/StatsPanel'
 import { TagManager } from './components/TagManager'
 import { TodoInput } from './components/TodoInput'
-import { TodoList } from './components/TodoList'
+import { TodoTable } from './components/TodoTable'
 import { ChatContainer } from './components/ChatContainer'
 
 export default function App() {
@@ -35,7 +35,7 @@ export default function App() {
 
       {showTagManager && <TagManager onClose={() => setShowTagManager(false)} />}
       <TodoInput />
-      <TodoList />
+      <TodoTable />
       <ChatContainer />
     </div>
   )
