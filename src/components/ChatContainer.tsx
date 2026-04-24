@@ -125,6 +125,24 @@ export function ChatContainer() {
               <button
                 onClick={(e) => {
                   e.stopPropagation()
+                  agentRef?.resetMessages()
+                  setMessages([])
+                  setStatus('idle')
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  color: '#007AFF',
+                  padding: '0 2px',
+                }}
+              >
+                新建对话
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
                   setExpanded(false)
                 }}
                 style={{
