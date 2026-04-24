@@ -196,6 +196,13 @@ size: 100,
           )
         },
       },
+      {
+        id: 'createdAt',
+        accessorKey: 'createdAt',
+        header: '创建时间',
+        cell: ({ row }) => <span style={{ fontSize: 12, color: '#888' }}>{new Date(row.original.createdAt).toLocaleDateString('zh-CN')}</span>,
+        size: 100,
+      },
     ],
     [todoTagsMap, complete, uncomplete]
   )

@@ -64,20 +64,23 @@ export async function addTodoTag(todoId: string, tagId: string): Promise<void> {
 
 export async function removeTodoTag(todoId: string, tagId: string): Promise<void> {
   const db = await getDB()
-  const records = await db.getAll('todo_tags') as (TodoTag & { id?: number })[]
-  const toDelete = records.find(r => r.todoId === todoId && r.tagId === tagId)
-  if (toDelete && toDelete.id !== undefined) {
-    await db.delete('todo_tags', toDelete.id)
+  const keys = await db.getAllKeys('todo_tags')
+  for (const key of keys) {
+    const record = await db.get('todo_tags', key) as TodoTag | undefined
+    if (record && record.todoId === todoId && record.tagId === tagId) {
+      await db.delete('todo_tags', key)
+      return
+    }
   }
 }
 
 export async function removeAllTodoTags(todoId: string): Promise<void> {
   const db = await getDB()
-  const records = await db.getAll('todo_tags') as (TodoTag & { id?: number })[]
-  const toDelete = records.filter(r => r.todoId === todoId)
-  for (const r of toDelete) {
-    if (r.id !== undefined) {
-      await db.delete('todo_tags', r.id)
+  const keys = await db.getAllKeys('todo_tags')
+  for (const key of keys) {
+    const record = await db.get('todo_tags', key) as TodoTag | undefined
+    if (record && record.todoId === todoId) {
+      await db.delete('todo_tags', key)
     }
   }
 }
