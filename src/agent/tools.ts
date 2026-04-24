@@ -1,5 +1,6 @@
 import { tool } from 'page-agent'
 import { useTodoStore } from '../store'
+import { z } from 'zod'
 
 function getStore() {
   return (globalThis as any).__todoStore as ReturnType<typeof useTodoStore.getState> | undefined
@@ -8,7 +9,7 @@ function getStore() {
 export const todoTools = {
   todo_create: tool({
     description: 'Create a new TODO item',
-    inputSchema: { text: 'string' } as any,
+    inputSchema: z.object({ text: z.string() }),
     execute: async function(this: any, input: { text: string }) {
       const store = getStore()
       if (!store) return 'Error: TodoStore not initialized'
@@ -19,7 +20,7 @@ export const todoTools = {
 
   todo_complete: tool({
     description: 'Mark a TODO as completed by text match',
-    inputSchema: { text: 'string' } as any,
+    inputSchema: z.object({ text: z.string() }),
     execute: async function(this: any, input: { text: string }) {
       const store = getStore()
       if (!store) return 'Error: TodoStore not initialized'
@@ -32,7 +33,7 @@ export const todoTools = {
 
   todo_uncomplete: tool({
     description: 'Re-open a completed TODO by text match',
-    inputSchema: { text: 'string' } as any,
+    inputSchema: z.object({ text: z.string() }),
     execute: async function(this: any, input: { text: string }) {
       const store = getStore()
       if (!store) return 'Error: TodoStore not initialized'
@@ -45,7 +46,7 @@ export const todoTools = {
 
   todo_delete: tool({
     description: 'Delete a TODO by text match',
-    inputSchema: { text: 'string' } as any,
+    inputSchema: z.object({ text: z.string() }),
     execute: async function(this: any, input: { text: string }) {
       const store = getStore()
       if (!store) return 'Error: TodoStore not initialized'
@@ -58,7 +59,7 @@ export const todoTools = {
 
   todo_list: tool({
     description: 'List all TODOs, optionally filtered by status',
-    inputSchema: { status: 'string' } as any,
+    inputSchema: z.object({ status: z.string().optional() }),
     execute: async function(this: any, input: { status?: string }) {
       const store = getStore()
       if (!store) return 'Error: TodoStore not initialized'
@@ -77,7 +78,7 @@ export const todoTools = {
 
   todo_stats: tool({
     description: "Get today's statistics",
-    inputSchema: {} as any,
+    inputSchema: z.object({}),
     execute: async function(this: any) {
       const store = getStore()
       if (!store) return 'Error: TodoStore not initialized'
@@ -88,7 +89,7 @@ export const todoTools = {
 
   todo_get_weekly_report: tool({
     description: "Get this week's completed tasks for report generation",
-    inputSchema: {} as any,
+    inputSchema: z.object({}),
     execute: async function(this: any) {
       const store = getStore()
       if (!store) return 'Error: TodoStore not initialized'
