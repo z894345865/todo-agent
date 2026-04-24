@@ -263,11 +263,18 @@ export const todoTools: Record<string, Tool> = {
       const date = now.getDate()
       const dayOfWeek = now.getDay() || 7 // 0=Sun -> 7
 
+      const toLocalDateStr = (d: Date) => {
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        return `${y}-${m}-${day}`
+      }
+
       if (period === 'day') {
         const start = new Date(year, month, date)
         return JSON.stringify({
-          start: start.toISOString().split('T')[0],
-          end: start.toISOString().split('T')[0],
+          start: toLocalDateStr(start),
+          end: toLocalDateStr(start),
         })
       }
 
@@ -278,8 +285,8 @@ export const todoTools: Record<string, Tool> = {
         sunday.setDate(monday.getDate() + 6)
         sunday.setHours(23, 59, 59, 999)
         return JSON.stringify({
-          start: monday.toISOString().split('T')[0],
-          end: sunday.toISOString().split('T')[0],
+          start: toLocalDateStr(monday),
+          end: toLocalDateStr(sunday),
         })
       }
 
@@ -287,8 +294,8 @@ export const todoTools: Record<string, Tool> = {
         const start = new Date(year, month, 1)
         const end = new Date(year, month + 1, 0, 23, 59, 59, 999)
         return JSON.stringify({
-          start: start.toISOString().split('T')[0],
-          end: end.toISOString().split('T')[0],
+          start: toLocalDateStr(start),
+          end: toLocalDateStr(end),
         })
       }
 
