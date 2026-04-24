@@ -1,9 +1,25 @@
+export interface Tag {
+  id: string
+  name: string
+  color: string
+}
+
+export interface TodoTag {
+  todoId: string
+  tagId: string
+}
+
+export type Priority = 'high' | 'medium' | 'low'
+
 export interface Todo {
   id: string
   text: string
   completed: boolean
   createdAt: number
   completedAt?: number
+  priority?: Priority
+  dueDate?: number
+  description?: string
 }
 
 export interface TodoStats {
@@ -11,6 +27,12 @@ export interface TodoStats {
   completed: number
   completionRate: number
   weeklyCompleted: number
+  priorityStats: {
+    high: number
+    medium: number
+    low: number
+  }
+  overdueCount: number
 }
 
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool'
