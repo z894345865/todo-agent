@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTodoStore } from '../store'
 import { PrioritySelector } from './PrioritySelector'
 import { TagSelector } from './TagSelector'
-import type { Tag, Priority } from '../types'
+import type { Tag, Priority, Todo } from '../types'
 
 export function TodoInput() {
   const [text, setText] = useState('')
@@ -15,19 +15,24 @@ export function TodoInput() {
 
   const handleSubmit = async () => {
     if (!text.trim()) return
-    const extra: any = {}
+    const extra: Partial<Todo> = {}
     if (priority) extra.priority = priority
     if (dueDate) extra.dueDate = new Date(dueDate).getTime()
     if (description) extra.description = description
 
-    await add(text.trim(), extra)
+    try {
+      await add(text.trim(), extra)
 
-    // Handle tags
-    if (selectedTags.length > 0) {
-      const todo = useTodoStore.getState().todos.find(t => t.text === text.trim())
-      if (todo) {
-        await useTodoStore.getState().setTodoTags(todo.id, selectedTags.map(t => t.id))
+      // Handle tags
+      if (selectedTags.length > 0) {
+        const todos = useTodoStore.getState().todos
+        const todo = todos[todos.length - 1]  // newest todo
+        if (todo) {
+          await useTodoStore.getState().setTodoTags(todo.id, selectedTags.map(t => t.id))
+        }
       }
+    } catch (e) {
+      console.error('Failed to add todo:', e)
     }
 
     setText('')
