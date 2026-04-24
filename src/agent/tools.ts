@@ -100,24 +100,30 @@ export const todoTools: Record<string, Tool> = {
 
   todo_update: {
     name: 'todo_update',
-    description: 'Update TODO fields (priority, dueDate, tags, description)',
+    description: 'Update TODO fields by id (priority, dueDate, tags, description, text)',
     inputSchema: z.object({
-      text: z.string(),
+      id: z.string(),
+      text: z.string().optional(),
       priority: z.enum(['high', 'medium', 'low']).optional(),
       dueDate: z.string().optional(),
       tags: z.array(z.string()).optional(),
       description: z.string().optional(),
     }),
     execute: async (input: unknown) => {
-      const { text, priority, dueDate, tags: tagNames, description } = input as {
-        text: string; priority?: 'high' | 'medium' | 'low'; dueDate?: string
-        tags?: string[]; description?: string
+      const { id, text, priority, dueDate, tags: tagNames, description } = input as {
+        id: string;
+        text?: string;
+        priority?: 'high' | 'medium' | 'low';
+        dueDate?: string;
+        tags?: string[];
+        description?: string;
       }
       const store = useTodoStore.getState()
-      const todo = store.getByText(text)
-      if (!todo) return `No TODO found matching: "${text}"`
+      const todo = store.todos.find((t) => t.id === id)
+      if (!todo) return `No TODO found with id: "${id}"`
 
       const updated: any = { ...todo }
+      if (text !== undefined) updated.text = text
       if (priority !== undefined) updated.priority = priority
       if (dueDate !== undefined) updated.dueDate = new Date(dueDate).getTime()
       if (description !== undefined) updated.description = description
