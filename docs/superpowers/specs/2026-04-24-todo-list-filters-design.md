@@ -6,7 +6,7 @@
 
 当前 `todo_list` 仅支持 `status` 筛选（all/active/completed），缺少 UI 上已有的其他筛选维度。
 
-本次新增筛选参数：priority、tag、overdue、dueDateStart/End、completedDateStart/End。
+本次新增筛选参数：priority、tags（数组）、overdue（含 all）、dueDateStart/End、completedDateStart/End。
 
 ## 2. Schema 变更
 
@@ -20,8 +20,8 @@ inputSchema: z.object({ status: z.string().optional() })
 inputSchema: z.object({
   status: z.enum(['all', 'active', 'completed']).optional(),        // 默认 all
   priority: z.enum(['all', 'high', 'medium', 'low']).optional(),   // 默认 all
-  tag: z.string().optional(),                                       // 按标签名精确匹配
-  overdue: z.boolean().optional(),                                   // true=已逾期且未完成, false=未逾期
+  tags: z.array(z.string()).optional(),                              // 标签列表，为空则不过滤，非空则任务包含所有这些标签
+  overdue: z.enum(['all', 'yes', 'no']).optional(),                 // 默认 all
   dueDateStart: z.string().optional(),                               // 截止日期 >= 此值 (ISO date)
   dueDateEnd: z.string().optional(),                                 // 截止日期 <= 此值 (ISO date)
   completedDateStart: z.string().optional(),                         // 完成日期 >= 此值
@@ -39,9 +39,11 @@ inputSchema: z.object({
 | `status=completed` | `t.completed === true` |
 | `status=all` | 不过滤 |
 | `priority=high/medium/low` | `t.priority === value` |
-| `tag` | todo 的标签中包含此标签名 |
-| `overdue=true` | `!t.completed && t.dueDate && t.dueDate < now` |
-| `overdue=false` | `!t.completed && t.dueDate && t.dueDate >= now`，或 `t.completed` |
+| `tags=[]` | 不过滤 |
+| `tags=[x,y]` | 任务必须拥有**所有**列表中的标签（AND 逻辑） |
+| `overdue=all` | 不过滤 |
+| `overdue=yes` | `!t.completed && t.dueDate && t.dueDate < now` |
+| `overdue=no` | `!t.completed && t.dueDate && t.dueDate >= now`，或 `t.completed` |
 | `dueDateStart` | `t.dueDate >= new Date(dueDateStart).getTime()` |
 | `dueDateEnd` | `t.dueDate <= new Date(dueDateEnd).getTime() + 86400000`（包含当天） |
 | `completedDateStart` | `t.completedAt >= new Date(completedDateStart).getTime()` |
