@@ -96,7 +96,24 @@ export class AgentCore {
       }
 
       const abortController = new AbortController()
-      const response = await this.callLLM(abortController)
+      let response: { content?: string; tool_calls?: Array<{ name: string; args: Record<string, unknown> }> } = { content: undefined, tool_calls: undefined }
+      try {
+        response = await this.callLLM(abortController)
+      } catch (e) {
+        if (e instanceof AbortError) {
+          const abortMsg: ErrorMessage = {
+            id: this.newId(),
+            role: 'assistant',
+            timestamp: Date.now(),
+            type: 'error',
+            content: '已中止',
+          }
+          this.addMessage(abortMsg)
+          this.setStatus('aborted')
+          return
+        }
+        throw e
+      }
 
       if (this.abortFlag) {
         const abortMsg: ErrorMessage = {
@@ -238,32 +255,39 @@ export class AgentCore {
       },
     }))
 
-    const response = await fetch(`${this.baseURL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      signal: abortController.signal,
-      body: JSON.stringify({ model: this.model, messages: msgs, tools, stream: false }),
-    })
+    try {
+      const response = await fetch(`${this.baseURL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        signal: abortController.signal,
+        body: JSON.stringify({ model: this.model, messages: msgs, tools, stream: false }),
+      })
 
-    if (!response.ok) {
-      const errText = await response.text()
-      throw new Error(`LLM API error: ${response.status} ${errText}`)
+      if (!response.ok) {
+        const errText = await response.text()
+        throw new Error(`LLM API error: ${response.status} ${errText}`)
+      }
+
+      const data = await response.json()
+      const msg = data.choices?.[0]?.message
+
+      if (!msg) return {}
+
+      const tool_calls = msg.tool_calls?.map((tc: any) => ({
+        name: tc.function.name,
+        args: JSON.parse(tc.function.arguments),
+      }))
+
+      return { content: msg.content || undefined, tool_calls }
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') {
+        throw new AbortError()
+      }
+      throw e
     }
-
-    const data = await response.json()
-    const msg = data.choices?.[0]?.message
-
-    if (!msg) return {}
-
-    const tool_calls = msg.tool_calls?.map((tc: any) => ({
-      name: tc.function.name,
-      args: JSON.parse(tc.function.arguments),
-    }))
-
-    return { content: msg.content || undefined, tool_calls }
   }
 
   private zodToJsonSchema(schema: z.ZodType): Record<string, unknown> {
