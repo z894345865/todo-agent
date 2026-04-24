@@ -28,19 +28,29 @@ cd todo-with-agent
 npm install
 ```
 
-### 2. 配置 API Key
+### 2. 配置 LLM Provider
 
-PageAgent 需要调用 LLM API，这里使用阿里云的通义千问作为默认 provider。
+PageAgent 支持任意 OpenAI 兼容的 LLM API。
 
 ```bash
 cp .env.example .env
 ```
 
-编辑 `.env` 文件，填入你的 API Key：
+编辑 `.env` 文件，配置你的 LLM provider：
 
 ```
-VITE_DASHSCOPE_API_KEY=your_api_key_here
+VITE_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+VITE_LLM_API_KEY=your_api_key_here
+VITE_LLM_MODEL=qwen3.5-plus
+VITE_LLM_LANGUAGE=zh-CN
 ```
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `VITE_LLM_BASE_URL` | LLM API 地址（OpenAI 兼容） | — |
+| `VITE_LLM_API_KEY` | API Key | — |
+| `VITE_LLM_MODEL` | 模型名称 | `qwen3.5-plus` |
+| `VITE_LLM_LANGUAGE` | AI 界面语言 | `zh-CN` |
 
 ### 3. 启动开发服务器
 
@@ -101,9 +111,12 @@ interface Todo {
 
 ## 环境变量
 
-| 变量 | 说明 |
-|------|------|
-| `VITE_DASHSCOPE_API_KEY` | 阿里云 DashScope API Key（用于通义千问） |
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `VITE_LLM_BASE_URL` | LLM API 地址（OpenAI 兼容） | — |
+| `VITE_LLM_API_KEY` | API Key | — |
+| `VITE_LLM_MODEL` | 模型名称 | `qwen3.5-plus` |
+| `VITE_LLM_LANGUAGE` | AI 界面语言 | `zh-CN` |
 
 ## 注意事项
 
