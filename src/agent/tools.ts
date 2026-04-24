@@ -151,18 +151,87 @@ export const todoTools: Record<string, Tool> = {
 
   todo_list: {
     name: 'todo_list',
-    description: 'List all TODOs, filter by status (all/active/completed, default all)',
-    inputSchema: z.object({ status: z.string().optional() }),
+    description: 'List all TODOs, filter by status/priority/tags/overdue/dates',
+    inputSchema: z.object({
+      status: z.enum(['all', 'active', 'completed']).optional(),
+      priority: z.enum(['all', 'high', 'medium', 'low']).optional(),
+      tags: z.array(z.string()).optional(),
+      overdue: z.enum(['all', 'yes', 'no']).optional(),
+      dueDateStart: z.string().optional(),
+      dueDateEnd: z.string().optional(),
+      completedDateStart: z.string().optional(),
+      completedDateEnd: z.string().optional(),
+    }),
     execute: async (input: unknown) => {
-      const { status } = input as { status?: string }
+      const { status, priority, tags, overdue, dueDateStart, dueDateEnd, completedDateStart, completedDateEnd } = input as {
+        status?: 'all' | 'active' | 'completed'
+        priority?: 'all' | 'high' | 'medium' | 'low'
+        tags?: string[]
+        overdue?: 'all' | 'yes' | 'no'
+        dueDateStart?: string
+        dueDateEnd?: string
+        completedDateStart?: string
+        completedDateEnd?: string
+      }
       const store = useTodoStore.getState()
       if (!store) return 'Error: TodoStore not initialized'
       let todos = store.todos
-      if (status === 'completed') {
-        todos = todos.filter((t: any) => t.completed)
-      } else if (status === 'active') {
+
+      const now = Date.now()
+
+      // status 筛选
+      if (status === 'active') {
         todos = todos.filter((t: any) => !t.completed)
+      } else if (status === 'completed') {
+        todos = todos.filter((t: any) => t.completed)
       }
+
+      // priority 筛选
+      if (priority && priority !== 'all') {
+        todos = todos.filter((t: any) => t.priority === priority)
+      }
+
+      // tags 筛选 (AND 逻辑)
+      if (tags && tags.length > 0) {
+        const filtered: any[] = []
+        for (const t of todos) {
+          const tagIds = await db.getTodoTags(t.id)
+          const todoTags = await db.getTagsByIds(tagIds)
+          const todoTagNames = todoTags.map((tag: Tag) => tag.name)
+          if (tags.every((tagName) => todoTagNames.includes(tagName))) {
+            filtered.push(t)
+          }
+        }
+        todos = filtered
+      }
+
+      // overdue 筛选
+      if (overdue === 'yes') {
+        todos = todos.filter((t: any) => !t.completed && t.dueDate && t.dueDate < now)
+      } else if (overdue === 'no') {
+        todos = todos.filter((t: any) => t.completed || !t.dueDate || t.dueDate >= now)
+      }
+
+      // dueDate 范围筛选
+      if (dueDateStart) {
+        const start = new Date(dueDateStart).getTime()
+        todos = todos.filter((t: any) => t.dueDate && t.dueDate >= start)
+      }
+      if (dueDateEnd) {
+        const end = new Date(dueDateEnd).getTime() + 86400000
+        todos = todos.filter((t: any) => t.dueDate && t.dueDate < end)
+      }
+
+      // completedDate 范围筛选
+      if (completedDateStart) {
+        const start = new Date(completedDateStart).getTime()
+        todos = todos.filter((t: any) => t.completedAt && t.completedAt >= start)
+      }
+      if (completedDateEnd) {
+        const end = new Date(completedDateEnd).getTime() + 86400000
+        todos = todos.filter((t: any) => t.completedAt && t.completedAt < end)
+      }
+
       if (todos.length === 0) return 'No TODOs found'
       const lines = await Promise.all(
         todos.map(async (t) => {
