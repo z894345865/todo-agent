@@ -92,7 +92,7 @@ export function TodoTable() {
           <input
             type="checkbox"
             checked={row.original.completed}
-            onChange={() => row.original.completed ? uncomplete(row.original.id) : complete(row.original.id)}
+            onChange={(e) => { e.stopPropagation(); row.original.completed ? uncomplete(row.original.id) : complete(row.original.id) }}
           />
         ),
         size: 48,
