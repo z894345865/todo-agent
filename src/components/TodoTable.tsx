@@ -218,6 +218,8 @@ size: 100,
     onSortingChange: handleSortingChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    enableColumnResizing: true,
+    columnResizeMode: 'onChange',
   })
 
   const headerGroups = table.getHeaderGroups()
@@ -294,16 +296,29 @@ size: 100,
                   <th
                     key={header.id}
                     onClick={header.column.getToggleSortingHandler()}
+                    onMouseDown={header.getResizeHandler()}
+                    onTouchStart={header.getResizeHandler()}
                     style={{
                       padding: '10px 12px', textAlign: 'left', fontWeight: 500, color: '#333',
                       borderBottom: '1px solid #eee', cursor: header.column.getCanSort() ? 'pointer' : 'default',
                       userSelect: 'none', width: header.getSize(),
+                      position: 'relative',
                     }}
                   >
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       {flexRender(header.column.columnDef.header, header.getContext())}
                       {header.column.getIsSorted() === 'asc' ? ' ↑' : header.column.getIsSorted() === 'desc' ? ' ↓' : null}
                     </span>
+                    {header.column.getCanResize() && (
+                      <div
+                        onMouseDown={header.getResizeHandler()}
+                        onTouchStart={header.getResizeHandler()}
+                        style={{
+                          position: 'absolute', right: 0, top: 0, bottom: 0, width: 5, cursor: 'col-resize',
+                          backgroundColor: header.column.getIsResizing() ? '#007AFF' : 'transparent',
+                        }}
+                      />
+                    )}
                   </th>
                 ))}
               </tr>
