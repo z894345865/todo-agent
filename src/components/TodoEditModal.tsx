@@ -51,6 +51,7 @@ export function TodoEditModal({ todoId, onClose }: TodoEditModalProps) {
     }
     await updateTodo(updated)
     await store.setTodoTags(todoId, selectedTags.map((t) => t.id))
+    await store.init()
     onClose()
   }
 
