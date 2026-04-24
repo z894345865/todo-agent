@@ -3,7 +3,7 @@ import type { Todo, TodoStats, Tag, TodoTag } from '../types'
 
 const DB_NAME = 'todo-db'
 const STORE_NAME = 'todos'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 let dbPromise: Promise<IDBPDatabase> | null = null
 
@@ -18,7 +18,7 @@ function getDB(): Promise<IDBPDatabase> {
           db.createObjectStore('tags', { keyPath: 'id' })
         }
         if (!db.objectStoreNames.contains('todo_tags')) {
-          db.createObjectStore('todo_tags', { keyPath: 'todoId' })
+          db.createObjectStore('todo_tags', { autoIncrement: true })
         }
       },
     })
@@ -64,15 +64,21 @@ export async function addTodoTag(todoId: string, tagId: string): Promise<void> {
 
 export async function removeTodoTag(todoId: string, tagId: string): Promise<void> {
   const db = await getDB()
-  await db.delete('todo_tags', [todoId, tagId])
+  const records = await db.getAll('todo_tags') as (TodoTag & { id?: number })[]
+  const toDelete = records.find(r => r.todoId === todoId && r.tagId === tagId)
+  if (toDelete && toDelete.id !== undefined) {
+    await db.delete('todo_tags', toDelete.id)
+  }
 }
 
 export async function removeAllTodoTags(todoId: string): Promise<void> {
   const db = await getDB()
-  const records = await db.getAll('todo_tags') as TodoTag[]
+  const records = await db.getAll('todo_tags') as (TodoTag & { id?: number })[]
   const toDelete = records.filter(r => r.todoId === todoId)
   for (const r of toDelete) {
-    await db.delete('todo_tags', [r.todoId, r.tagId])
+    if (r.id !== undefined) {
+      await db.delete('todo_tags', r.id)
+    }
   }
 }
 
@@ -109,11 +115,18 @@ export async function getTodoStats(): Promise<TodoStats> {
 
   const completed = todos.filter((t) => t.completed)
   const weeklyCompleted = completed.filter((t) => (t.completedAt ?? 0) >= startOfWeekMs)
+  const now = Date.now()
+  const highPriority = todos.filter((t) => t.priority === 'high').length
+  const mediumPriority = todos.filter((t) => t.priority === 'medium').length
+  const lowPriority = todos.filter((t) => t.priority === 'low').length
+  const overdueCount = todos.filter((t) => !t.completed && t.dueDate && t.dueDate < now).length
 
   return {
     total: todos.length,
     completed: completed.length,
     completionRate: todos.length > 0 ? Math.round((completed.length / todos.length) * 100) : 0,
     weeklyCompleted: weeklyCompleted.length,
+    priorityStats: { high: highPriority, medium: mediumPriority, low: lowPriority },
+    overdueCount,
   }
 }

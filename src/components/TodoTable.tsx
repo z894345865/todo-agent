@@ -20,6 +20,8 @@ export function TodoTable() {
   const [filterStatus, setFilterStatus] = useState<string>('全部')
   const [filterOverdue, setFilterOverdue] = useState<string>('全部')
   const [filterTag, setFilterTag] = useState<string>('全部')
+  const [filterDueDate, setFilterDueDate] = useState<string>('全部')
+  const [filterCompletedDate, setFilterCompletedDate] = useState<string>('全部')
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null)
 
   // 加载每个 todo 的 tags
@@ -54,9 +56,28 @@ export function TodoTable() {
         const todoTagNames = (todoTagsMap[todo.id] ?? []).map((t) => t.name)
         if (!todoTagNames.includes(filterTag)) return false
       }
+      // 截止日期快捷筛选
+      if (filterDueDate !== '全部' && todo.dueDate) {
+        const now = new Date()
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+        const tomorrow = today + 86400000
+        const weekEnd = today + 7 * 86400000
+        if (filterDueDate === '今日截止' && (todo.dueDate < today || todo.dueDate >= tomorrow)) return false
+        if (filterDueDate === '本周截止' && (todo.dueDate < today || todo.dueDate >= weekEnd)) return false
+        if (filterDueDate === '已逾期' && todo.dueDate >= now.getTime()) return false
+      }
+      // 完成日期快捷筛选
+      if (filterCompletedDate !== '全部' && todo.completedAt) {
+        const now = new Date()
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+        const tomorrow = today + 86400000
+        const weekEnd = today + 7 * 86400000
+        if (filterCompletedDate === '今天完成' && (todo.completedAt < today || todo.completedAt >= tomorrow)) return false
+        if (filterCompletedDate === '本周完成' && (todo.completedAt < today || todo.completedAt >= weekEnd)) return false
+      }
       return true
     })
-  }, [todos, filterPriority, filterStatus, filterOverdue, filterTag, todoTagsMap])
+  }, [todos, filterPriority, filterStatus, filterOverdue, filterTag, filterDueDate, filterCompletedDate, todoTagsMap])
 
   // 排序逻辑
   const sortedTodos = useMemo(() => {
@@ -239,6 +260,27 @@ size: 100,
             <option>全部</option>
             <option>已逾期</option>
             <option>未逾期</option>
+          </select>
+        </div>
+
+        {/* 截止日期快捷筛选 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 12, color: '#666' }}>截止日期</span>
+          <select value={filterDueDate} onChange={(e) => setFilterDueDate(e.target.value)} style={{ padding: '4px 8px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }}>
+            <option>全部</option>
+            <option>今日截止</option>
+            <option>本周截止</option>
+            <option>已逾期</option>
+          </select>
+        </div>
+
+        {/* 完成日期快捷筛选 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 12, color: '#666' }}>完成日期</span>
+          <select value={filterCompletedDate} onChange={(e) => setFilterCompletedDate(e.target.value)} style={{ padding: '4px 8px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }}>
+            <option>全部</option>
+            <option>今天完成</option>
+            <option>本周完成</option>
           </select>
         </div>
       </div>
