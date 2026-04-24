@@ -1,9 +1,7 @@
 import { useEffect } from 'react'
 import { useTodoStore } from './store'
-import { TodoInput } from './components/TodoInput'
-import { TodoList } from './components/TodoList'
 import { StatsPanel } from './components/StatsPanel'
-import { AIPanel } from './components/AIPanel'
+import { ChatContainer } from './components/ChatContainer'
 
 export default function App() {
   const init = useTodoStore((s) => s.init)
@@ -13,12 +11,10 @@ export default function App() {
   }, [init])
 
   return (
-    <div>
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 16px' }}>
       <h1 style={{ marginBottom: 24, fontSize: 24 }}>TODO with Agent</h1>
       <StatsPanel />
-      <TodoInput />
-      <TodoList />
-      <AIPanel />
+      <ChatContainer />
     </div>
   )
 }
