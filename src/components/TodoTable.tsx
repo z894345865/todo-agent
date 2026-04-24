@@ -162,17 +162,6 @@ size: 100,
         size: 100,
       },
       {
-        id: 'completedAt',
-        accessorKey: 'completedAt',
-        header: '完成日期',
-        cell: ({ row }) => {
-          const d = row.original.completedAt
-          if (!d) return <span style={{ color: '#ccc' }}>—</span>
-          return <span style={{ fontSize: 12, color: '#22C55E' }}>{new Date(d).toLocaleDateString('zh-CN')}</span>
-        },
-        size: 100,
-      },
-      {
         id: 'description',
         accessorKey: 'description',
         header: '描述',
