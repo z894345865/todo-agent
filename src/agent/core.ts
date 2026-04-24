@@ -30,6 +30,7 @@ export class AgentCore {
   private onMessage?: (message: Message) => void
   private maxIterations = 100
   private abortFlag = false
+  private currentAbortController: AbortController | null = null
 
   constructor(options: AgentCoreOptions) {
     this.baseURL = options.baseURL
@@ -75,6 +76,7 @@ export class AgentCore {
 
   abort(): void {
     this.abortFlag = true
+    this.currentAbortController?.abort()
   }
 
   private async runAgentLoop() {
@@ -96,6 +98,7 @@ export class AgentCore {
       }
 
       const abortController = new AbortController()
+      this.currentAbortController = abortController
       let response: { content?: string; tool_calls?: Array<{ name: string; args: Record<string, unknown> }> } = { content: undefined, tool_calls: undefined }
       try {
         response = await this.callLLM(abortController)
@@ -109,6 +112,7 @@ export class AgentCore {
             content: '已中止',
           }
           this.addMessage(abortMsg)
+          this.currentAbortController = null
           this.setStatus('aborted')
           return
         }
@@ -140,6 +144,7 @@ export class AgentCore {
       }
 
       if (!response.tool_calls || response.tool_calls.length === 0) {
+        this.currentAbortController = null
         this.setStatus('idle')
         return
       }
@@ -154,6 +159,7 @@ export class AgentCore {
             content: '已中止',
           }
           this.addMessage(abortMsg)
+          this.currentAbortController = null
           this.setStatus('aborted')
           return
         }
@@ -190,6 +196,7 @@ export class AgentCore {
       content: 'Agent reached max iterations',
     }
     this.addMessage(errorMsg)
+    this.currentAbortController = null
     this.setStatus('error')
   }
 
