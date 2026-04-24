@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Todo, TodoStats } from '../types'
+import type { Todo, TodoStats, Tag } from '../types'
 import * as db from '../db'
 
 // Event emitter for cross-framework reactivity (PageAgent tools need to trigger React re-renders)
@@ -12,21 +12,27 @@ function notify() {
 
 export interface TodoStore {
   todos: Todo[]
+  tags: Tag[]
   stats: TodoStats
   loading: boolean
   error: string | null
   init: () => Promise<void>
-  add: (text: string) => Promise<void>
+  add: (text: string, extra?: Partial<Todo>) => Promise<Todo>
   complete: (id: string) => Promise<void>
   uncomplete: (id: string) => Promise<void>
   delete: (id: string) => Promise<void>
   getByText: (text: string) => Todo | undefined
+  addTag: (name: string, color: string) => Promise<Tag>
+  deleteTag: (id: string) => Promise<void>
+  addTagToTodo: (todoId: string, tagId: string) => Promise<void>
+  setTodoTags: (todoId: string, tagIds: string[]) => Promise<void>
   subscribe: (listener: Listener) => () => void
 }
 
 export const useTodoStore = create<TodoStore>((set, get) => ({
   todos: [],
-  stats: { total: 0, completed: 0, completionRate: 0, weeklyCompleted: 0 },
+  tags: [],
+  stats: { total: 0, completed: 0, completionRate: 0, weeklyCompleted: 0, priorityStats: { high: 0, medium: 0, low: 0 }, overdueCount: 0 },
   loading: false,
   error: null,
 
@@ -34,25 +40,28 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const todos = await db.getAllTodos()
+      const tags = await db.getAllTags()
       const stats = await db.getTodoStats()
-      set({ todos, stats, loading: false })
+      set({ todos, tags, loading: false, stats })
     } catch (e) {
       set({ error: String(e), loading: false })
     }
   },
 
-  add: async (text: string) => {
+  add: async (text: string, extra?: Partial<Todo>) => {
     const todo: Todo = {
       id: crypto.randomUUID(),
       text,
       completed: false,
       createdAt: Date.now(),
+      ...extra,
     }
     await db.addTodo(todo)
     const todos = await db.getAllTodos()
     const stats = await db.getTodoStats()
     set({ todos, stats })
     notify()
+    return todo
   },
 
   complete: async (id: string) => {
@@ -86,7 +95,44 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
   },
 
   getByText: (text: string) => {
-    return get().todos.find((t) => t.text.includes(text))
+    return get().todos.find((t) => t.text === text)
+  },
+
+  addTag: async (name: string, color: string) => {
+    const tag: Tag = { id: crypto.randomUUID(), name, color }
+    await db.addTag(tag)
+    const tags = await db.getAllTags()
+    set({ tags })
+    notify()
+    return tag
+  },
+
+  deleteTag: async (id: string) => {
+    // Remove this tag from all todos that have it
+    const todos = get().todos
+    for (const todo of todos) {
+      const tagIds = await db.getTodoTags(todo.id)
+      if (tagIds.includes(id)) {
+        await db.removeTodoTag(todo.id, id)
+      }
+    }
+    await db.deleteTag(id)
+    const tags = await db.getAllTags()
+    set({ tags })
+    notify()
+  },
+
+  addTagToTodo: async (todoId: string, tagId: string) => {
+    await db.addTodoTag(todoId, tagId)
+    notify()
+  },
+
+  setTodoTags: async (todoId: string, tagIds: string[]) => {
+    await db.removeAllTodoTags(todoId)
+    for (const tagId of tagIds) {
+      await db.addTodoTag(todoId, tagId)
+    }
+    notify()
   },
 
   subscribe: (listener: Listener) => {
