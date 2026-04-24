@@ -14,6 +14,7 @@ export const SYSTEM_PROMPT = `你是用户的 TODO 助手。
   - overdue: all | yes | no（默认 all）
   - dueDateStart / dueDateEnd: ISO 日期格式，如 2026-04-01（默认无限制）
   - completedDateStart / completedDateEnd: ISO 日期格式（默认无限制）
+- **get_date_range** — 获取日期范围（必填：period=day|week|month），返回 {start, end} 用于筛选
 - **tag_create** — 创建标签（必填：name；可选：color）
 - **tag_delete** — 删除标签（必填：name）
 

@@ -249,6 +249,54 @@ export const todoTools: Record<string, Tool> = {
     },
   },
 
+  get_date_range: {
+    name: 'get_date_range',
+    description: '获取日期范围，用于筛选',
+    inputSchema: z.object({
+      period: z.enum(['day', 'week', 'month']),
+    }),
+    execute: async (input: unknown) => {
+      const { period } = input as { period: 'day' | 'week' | 'month' }
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = now.getMonth()
+      const date = now.getDate()
+      const dayOfWeek = now.getDay() || 7 // 0=Sun -> 7
+
+      if (period === 'day') {
+        const start = new Date(year, month, date)
+        const end = new Date(year, month, date, 23, 59, 59, 999)
+        return JSON.stringify({
+          start: start.toISOString().split('T')[0],
+          end: end.toISOString().split('T')[0],
+        })
+      }
+
+      if (period === 'week') {
+        const monday = new Date(now)
+        monday.setDate(date - dayOfWeek + 1)
+        const sunday = new Date(monday)
+        sunday.setDate(monday.getDate() + 6)
+        sunday.setHours(23, 59, 59, 999)
+        return JSON.stringify({
+          start: monday.toISOString().split('T')[0],
+          end: sunday.toISOString().split('T')[0],
+        })
+      }
+
+      if (period === 'month') {
+        const start = new Date(year, month, 1)
+        const end = new Date(year, month + 1, 0, 23, 59, 59, 999)
+        return JSON.stringify({
+          start: start.toISOString().split('T')[0],
+          end: end.toISOString().split('T')[0],
+        })
+      }
+
+      return ''
+    },
+  },
+
   tag_create: {
     name: 'tag_create',
     description: 'Create a new tag',
