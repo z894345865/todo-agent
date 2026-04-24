@@ -249,37 +249,6 @@ export const todoTools: Record<string, Tool> = {
     },
   },
 
-  todo_stats: {
-    name: 'todo_stats',
-    description: "Get today's statistics",
-    inputSchema: z.object({}),
-    execute: async () => {
-      const store = useTodoStore.getState()
-      if (!store) return 'Error: TodoStore not initialized'
-      const s = store.stats
-      return `Today: ${s.completed}/${s.total} completed (${s.completionRate}%). This week: ${s.weeklyCompleted} completed.`
-    },
-  },
-
-  todo_get_weekly_report: {
-    name: 'todo_get_weekly_report',
-    description: "Get this week's completed tasks for report generation",
-    inputSchema: z.object({}),
-    execute: async () => {
-      const store = useTodoStore.getState()
-      if (!store) return 'Error: TodoStore not initialized'
-      const startOfDay = new Date().setHours(0, 0, 0, 0)
-      const startOfWeek = startOfDay - new Date(startOfDay).getDay() * 86400000
-      const completed = store.todos.filter(
-        (t: any) => t.completed && (t.completedAt ?? 0) >= startOfWeek
-      )
-      if (completed.length === 0) return 'No completed tasks this week.'
-      return completed
-        .map((t: any) => `- ${t.text}`)
-        .join('\n')
-    },
-  },
-
   tag_create: {
     name: 'tag_create',
     description: 'Create a new tag',

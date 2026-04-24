@@ -14,8 +14,6 @@ export const SYSTEM_PROMPT = `你是用户的 TODO 助手。
   - overdue: all | yes | no（默认 all）
   - dueDateStart / dueDateEnd: ISO 日期格式，如 2026-04-01（默认无限制）
   - completedDateStart / completedDateEnd: ISO 日期格式（默认无限制）
-- **todo_stats** — 统计今日/本周完成情况
-- **todo_get_weekly_report** — 获取本周已完成任务列表（用于写报告）
 - **tag_create** — 创建标签（必填：name；可选：color）
 - **tag_delete** — 删除标签（必填：name）
 
