@@ -12,17 +12,21 @@ export function AIPanel() {
     // This allows tools to access state without React context
     ;(globalThis as any).__todoStore = useTodoStore.getState()
 
-    const apiKey = import.meta.env.VITE_DASHSCOPE_API_KEY
-    if (!apiKey) {
-      console.warn('VITE_DASHSCOPE_API_KEY not set — PageAgent will not work. Create a .env file with VITE_DASHSCOPE_API_KEY=your_key')
+    const baseURL = import.meta.env.VITE_LLM_BASE_URL
+    const apiKey = import.meta.env.VITE_LLM_API_KEY
+    const model = import.meta.env.VITE_LLM_MODEL || 'qwen3.5-plus'
+    const language = import.meta.env.VITE_LLM_LANGUAGE || 'zh-CN'
+
+    if (!apiKey || !baseURL) {
+      console.warn('LLM not configured — set VITE_LLM_BASE_URL and VITE_LLM_API_KEY in .env')
       return
     }
 
     const agent = new PageAgent({
-      model: 'qwen3.5-plus',
-      baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      model,
+      baseURL,
       apiKey,
-      language: 'zh-CN',
+      language,
       customTools: todoTools,
     })
 
