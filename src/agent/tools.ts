@@ -265,10 +265,9 @@ export const todoTools: Record<string, Tool> = {
 
       if (period === 'day') {
         const start = new Date(year, month, date)
-        const end = new Date(year, month, date, 23, 59, 59, 999)
         return JSON.stringify({
           start: start.toISOString().split('T')[0],
-          end: end.toISOString().split('T')[0],
+          end: start.toISOString().split('T')[0],
         })
       }
 
