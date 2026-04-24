@@ -62,6 +62,10 @@ export class AgentCore {
     return [...this.messages]
   }
 
+  resetMessages(): void {
+    this.messages = []
+  }
+
   private async runAgentLoop() {
     this.setStatus('thinking')
 
