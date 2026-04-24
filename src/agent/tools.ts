@@ -241,7 +241,8 @@ export const todoTools: Record<string, Tool> = {
           const prioStr = t.priority ? `优先级: ${t.priority}` : ''
           const tagLine = tagStr ? `标签: ${tagStr}` : ''
           const dueStr = t.dueDate ? `截止: ${new Date(t.dueDate).toLocaleDateString('zh-CN')}` : ''
-          const meta = [prioStr, tagLine, dueStr].filter(Boolean).join(' | ')
+          const descStr = t.description ? `描述: ${t.description}` : ''
+          const meta = [prioStr, tagLine, dueStr, descStr].filter(Boolean).join(' | ')
           return `[id: ${t.id}] [${t.completed ? 'x' : ' '}] ${t.text}${meta ? ' | ' + meta : ''}`
         })
       )
