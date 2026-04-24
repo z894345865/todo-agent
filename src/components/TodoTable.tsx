@@ -285,7 +285,7 @@ size: 100,
       </div>
 
       {/* 表格 */}
-      <div style={{ border: '1px solid #eee', borderRadius: 8, overflowX: 'auto' }}>
+      <div style={{ border: '1px solid #eee', borderRadius: 8, overflowX: 'auto', minWidth: '100%' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             {headerGroups.map((headerGroup) => (

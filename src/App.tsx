@@ -15,7 +15,7 @@ export default function App() {
   }, [init])
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px' }}>
       <h1 style={{ marginBottom: 24, fontSize: 24 }}>TODO with Agent</h1>
       <StatsPanel />
       <button
