@@ -20,8 +20,10 @@ export function TodoTable() {
   const [filterStatus, setFilterStatus] = useState<string>('全部')
   const [filterOverdue, setFilterOverdue] = useState<string>('全部')
   const [filterTag, setFilterTag] = useState<string>('全部')
-  const [filterDueDate, setFilterDueDate] = useState<string>('全部')
-  const [filterCompletedDate, setFilterCompletedDate] = useState<string>('全部')
+  const [filterDueDateStart, setFilterDueDateStart] = useState<string>('')
+  const [filterDueDateEnd, setFilterDueDateEnd] = useState<string>('')
+  const [filterCompletedDateStart, setFilterCompletedDateStart] = useState<string>('')
+  const [filterCompletedDateEnd, setFilterCompletedDateEnd] = useState<string>('')
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null)
 
   // 加载每个 todo 的 tags
@@ -56,28 +58,23 @@ export function TodoTable() {
         const todoTagNames = (todoTagsMap[todo.id] ?? []).map((t) => t.name)
         if (!todoTagNames.includes(filterTag)) return false
       }
-      // 截止日期快捷筛选
-      if (filterDueDate !== '全部' && todo.dueDate) {
-        const now = new Date()
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-        const tomorrow = today + 86400000
-        const weekEnd = today + 7 * 86400000
-        if (filterDueDate === '今日截止' && (todo.dueDate < today || todo.dueDate >= tomorrow)) return false
-        if (filterDueDate === '本周截止' && (todo.dueDate < today || todo.dueDate >= weekEnd)) return false
-        if (filterDueDate === '已逾期' && todo.dueDate >= now.getTime()) return false
+      // 截止日期范围筛选
+      if (filterDueDateStart || filterDueDateEnd) {
+        if (!todo.dueDate) return false
+        const start = filterDueDateStart ? new Date(filterDueDateStart).getTime() : 0
+        const end = filterDueDateEnd ? new Date(filterDueDateEnd).getTime() + 86400000 : Number.MAX_SAFE_INTEGER
+        if (todo.dueDate < start || todo.dueDate >= end) return false
       }
-      // 完成日期快捷筛选
-      if (filterCompletedDate !== '全部' && todo.completedAt) {
-        const now = new Date()
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-        const tomorrow = today + 86400000
-        const weekEnd = today + 7 * 86400000
-        if (filterCompletedDate === '今天完成' && (todo.completedAt < today || todo.completedAt >= tomorrow)) return false
-        if (filterCompletedDate === '本周完成' && (todo.completedAt < today || todo.completedAt >= weekEnd)) return false
+      // 完成日期范围筛选
+      if (filterCompletedDateStart || filterCompletedDateEnd) {
+        if (!todo.completedAt) return false
+        const start = filterCompletedDateStart ? new Date(filterCompletedDateStart).getTime() : 0
+        const end = filterCompletedDateEnd ? new Date(filterCompletedDateEnd).getTime() + 86400000 : Number.MAX_SAFE_INTEGER
+        if (todo.completedAt < start || todo.completedAt >= end) return false
       }
       return true
     })
-  }, [todos, filterPriority, filterStatus, filterOverdue, filterTag, filterDueDate, filterCompletedDate, todoTagsMap])
+  }, [todos, filterPriority, filterStatus, filterOverdue, filterTag, filterDueDateStart, filterDueDateEnd, filterCompletedDateStart, filterCompletedDateEnd, todoTagsMap])
 
   // 排序逻辑
   const sortedTodos = useMemo(() => {
@@ -263,25 +260,20 @@ size: 100,
           </select>
         </div>
 
-        {/* 截止日期快捷筛选 */}
+        {/* 截止日期范围筛选 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 12, color: '#666' }}>截止日期</span>
-          <select value={filterDueDate} onChange={(e) => setFilterDueDate(e.target.value)} style={{ padding: '4px 8px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }}>
-            <option>全部</option>
-            <option>今日截止</option>
-            <option>本周截止</option>
-            <option>已逾期</option>
-          </select>
+          <input type="date" value={filterDueDateStart} onChange={(e) => setFilterDueDateStart(e.target.value)} style={{ padding: '4px 8px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
+          <span style={{ fontSize: 12, color: '#666' }}>至</span>
+          <input type="date" value={filterDueDateEnd} onChange={(e) => setFilterDueDateEnd(e.target.value)} style={{ padding: '4px 8px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
         </div>
 
-        {/* 完成日期快捷筛选 */}
+        {/* 完成日期范围筛选 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 12, color: '#666' }}>完成日期</span>
-          <select value={filterCompletedDate} onChange={(e) => setFilterCompletedDate(e.target.value)} style={{ padding: '4px 8px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }}>
-            <option>全部</option>
-            <option>今天完成</option>
-            <option>本周完成</option>
-          </select>
+          <input type="date" value={filterCompletedDateStart} onChange={(e) => setFilterCompletedDateStart(e.target.value)} style={{ padding: '4px 8px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
+          <span style={{ fontSize: 12, color: '#666' }}>至</span>
+          <input type="date" value={filterCompletedDateEnd} onChange={(e) => setFilterCompletedDateEnd(e.target.value)} style={{ padding: '4px 8px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
         </div>
       </div>
 
