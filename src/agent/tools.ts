@@ -1,5 +1,8 @@
 import { useTodoStore } from '../store'
 import { z } from 'zod'
+import * as db from '../db'
+import { TAG_COLORS } from '../db'
+import type { Tag } from '../types'
 
 export interface Tool {
   name: string
@@ -12,13 +15,41 @@ export const todoTools: Record<string, Tool> = {
   todo_create: {
     name: 'todo_create',
     description: 'Create a new TODO item',
-    inputSchema: z.object({ text: z.string() }),
+    inputSchema: z.object({
+      text: z.string(),
+      priority: z.enum(['high', 'medium', 'low']).optional(),
+      dueDate: z.string().optional(),
+      tags: z.array(z.string()).optional(),
+      description: z.string().optional(),
+    }),
     execute: async (input: unknown) => {
-      const { text } = input as { text: string }
+      const { text, priority, dueDate, tags: tagNames, description } = input as {
+        text: string; priority?: 'high' | 'medium' | 'low'; dueDate?: string
+        tags?: string[]; description?: string
+      }
       const store = useTodoStore.getState()
-      if (!store) return 'Error: TodoStore not initialized'
-      await store.add(text)
-      return `Created TODO: "${text}"`
+      const extra: any = {}
+      if (priority) extra.priority = priority
+      if (dueDate) extra.dueDate = new Date(dueDate).getTime()
+      if (description) extra.description = description
+      const todo = await store.add(text, extra)
+
+      if (tagNames) {
+        for (const name of tagNames) {
+          let tag = store.tags.find((t: Tag) => t.name === name)
+          if (!tag) {
+            const color = TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)]
+            tag = await store.addTag(name, color)
+          }
+          await store.addTagToTodo(todo.id, tag.id)
+        }
+      }
+
+      const parts = []
+      if (priority) parts.push(`priority: ${priority}`)
+      if (tagNames && tagNames.length > 0) parts.push(`tags: ${tagNames.join(', ')}`)
+      const meta = parts.length > 0 ? ` (${parts.join(', ')})` : ''
+      return `Created TODO: "${text}"${meta}`
     },
   },
 
@@ -67,6 +98,43 @@ export const todoTools: Record<string, Tool> = {
     },
   },
 
+  todo_update: {
+    name: 'todo_update',
+    description: 'Update TODO fields (priority, dueDate, tags, description)',
+    inputSchema: z.object({
+      text: z.string(),
+      priority: z.enum(['high', 'medium', 'low']).optional(),
+      dueDate: z.string().optional(),
+      tags: z.array(z.string()).optional(),
+      description: z.string().optional(),
+    }),
+    execute: async (input: unknown) => {
+      const { text, priority, dueDate, tags: tagNames, description } = input as {
+        text: string; priority?: 'high' | 'medium' | 'low'; dueDate?: string
+        tags?: string[]; description?: string
+      }
+      const store = useTodoStore.getState()
+      const todo = store.getByText(text)
+      if (!todo) return `No TODO found matching: "${text}"`
+
+      const updated: any = { ...todo }
+      if (priority !== undefined) updated.priority = priority
+      if (dueDate !== undefined) updated.dueDate = new Date(dueDate).getTime()
+      if (description !== undefined) updated.description = description
+
+      await db.updateTodo(updated)
+
+      if (tagNames !== undefined) {
+        await store.setTodoTags(todo.id, [])
+        for (const name of tagNames) {
+          const tag = store.tags.find((t: Tag) => t.name === name)
+          if (tag) await store.addTagToTodo(todo.id, tag.id)
+        }
+      }
+      return `Updated: "${todo.text}"`
+    },
+  },
+
   todo_list: {
     name: 'todo_list',
     description: 'List all TODOs, optionally filtered by status',
@@ -82,9 +150,19 @@ export const todoTools: Record<string, Tool> = {
         todos = todos.filter((t: any) => !t.completed)
       }
       if (todos.length === 0) return 'No TODOs found'
-      return todos
-        .map((t: any) => `[${t.completed ? 'x' : ' '}] ${t.text}`)
-        .join('\n')
+      const lines = await Promise.all(
+        todos.map(async (t) => {
+          const tagIds = await db.getTodoTags(t.id)
+          const tags = await db.getTagsByIds(tagIds)
+          const tagStr = tags.map((tag: Tag) => tag.name).join(', ')
+          const prioStr = t.priority ? `优先级: ${t.priority}` : ''
+          const tagLine = tagStr ? `标签: ${tagStr}` : ''
+          const dueStr = t.dueDate ? `截止: ${new Date(t.dueDate).toLocaleDateString('zh-CN')}` : ''
+          const meta = [prioStr, tagLine, dueStr].filter(Boolean).join(' | ')
+          return `[${t.completed ? 'x' : ' '}] ${t.text}${meta ? ' | ' + meta : ''}`
+        })
+      )
+      return lines.join('\n')
     },
   },
 
@@ -116,6 +194,38 @@ export const todoTools: Record<string, Tool> = {
       return completed
         .map((t: any) => `- ${t.text}`)
         .join('\n')
+    },
+  },
+
+  tag_create: {
+    name: 'tag_create',
+    description: 'Create a new tag',
+    inputSchema: z.object({
+      name: z.string(),
+      color: z.string().optional(),
+    }),
+    execute: async (input: unknown) => {
+      const { name, color } = input as { name: string; color?: string }
+      const store = useTodoStore.getState()
+      const existing = store.tags.find((t: Tag) => t.name === name)
+      if (existing) return `Tag "${name}" already exists`
+      const tagColor = color && TAG_COLORS.includes(color) ? color : TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)]
+      await store.addTag(name, tagColor)
+      return `Created tag: ${name} (${tagColor})`
+    },
+  },
+
+  tag_delete: {
+    name: 'tag_delete',
+    description: 'Delete a tag (removes from all todos)',
+    inputSchema: z.object({ name: z.string() }),
+    execute: async (input: unknown) => {
+      const { name } = input as { name: string }
+      const store = useTodoStore.getState()
+      const tag = store.tags.find((t: Tag) => t.name === name)
+      if (!tag) return `Tag "${name}" not found`
+      await store.deleteTag(tag.id)
+      return `Deleted tag: ${name}`
     },
   },
 }
