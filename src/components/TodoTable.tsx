@@ -224,7 +224,7 @@ size: 100,
   const rows = table.getRowModel().rows
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflowX: 'auto' }}>
       {/* 筛选栏 */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         {/* 优先级筛选 */}
