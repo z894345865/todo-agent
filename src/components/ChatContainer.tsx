@@ -50,7 +50,7 @@ export function ChatContainer() {
     [agentRef]
   )
 
-  const statusLabel = { idle: '就绪', thinking: '思考中...', error: '错误' }[status]
+  const statusLabel = { idle: '就绪', thinking: '思考中...', error: '错误', aborted: '已中止' }[status]
 
   // Floating widget at bottom-right
   return (
@@ -117,11 +117,31 @@ export function ChatContainer() {
               <span
                 style={{
                   color:
-                    status === 'thinking' ? '#007AFF' : status === 'error' ? '#c62828' : '#888',
+                    status === 'thinking' ? '#007AFF' : status === 'error' ? '#c62828' : status === 'aborted' ? '#e65100' : '#888',
                 }}
               >
                 {statusLabel}
               </span>
+              {status === 'thinking' && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    agentRef?.abort()
+                  }}
+                  style={{
+                    background: '#ff3b30',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 11,
+                    color: '#fff',
+                    padding: '2px 8px',
+                    borderRadius: 4,
+                    fontWeight: 600,
+                  }}
+                >
+                  停止
+                </button>
+              )}
               <button
                 onClick={(e) => {
                   e.stopPropagation()

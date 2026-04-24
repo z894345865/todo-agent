@@ -3,7 +3,13 @@ import { todoTools } from './tools'
 import { SYSTEM_PROMPT } from './prompts'
 import { z } from 'zod'
 
-export type AgentStatus = 'idle' | 'thinking' | 'error'
+export class AbortError extends Error {
+  constructor() {
+    super('Agent aborted by user')
+  }
+}
+
+export type AgentStatus = 'idle' | 'thinking' | 'error' | 'aborted'
 
 export interface AgentCoreOptions {
   baseURL: string
@@ -22,7 +28,8 @@ export class AgentCore {
   private language: string
   private onStatusChange?: (status: AgentStatus) => void
   private onMessage?: (message: Message) => void
-  private maxIterations = 10
+  private maxIterations = 100
+  private abortFlag = false
 
   constructor(options: AgentCoreOptions) {
     this.baseURL = options.baseURL
@@ -66,11 +73,42 @@ export class AgentCore {
     this.messages = []
   }
 
+  abort(): void {
+    this.abortFlag = true
+  }
+
   private async runAgentLoop() {
     this.setStatus('thinking')
+    this.abortFlag = false
 
     for (let i = 0; i < this.maxIterations; i++) {
+      if (this.abortFlag) {
+        const abortMsg: ErrorMessage = {
+          id: this.newId(),
+          role: 'assistant',
+          timestamp: Date.now(),
+          type: 'error',
+          content: '已中止',
+        }
+        this.addMessage(abortMsg)
+        this.setStatus('aborted')
+        return
+      }
+
       const response = await this.callLLM()
+
+      if (this.abortFlag) {
+        const abortMsg: ErrorMessage = {
+          id: this.newId(),
+          role: 'assistant',
+          timestamp: Date.now(),
+          type: 'error',
+          content: '已中止',
+        }
+        this.addMessage(abortMsg)
+        this.setStatus('aborted')
+        return
+      }
 
       if (response.content) {
         const assistantMsg: TextMessage = {
@@ -89,6 +127,19 @@ export class AgentCore {
       }
 
       for (const tc of response.tool_calls) {
+        if (this.abortFlag) {
+          const abortMsg: ErrorMessage = {
+            id: this.newId(),
+            role: 'assistant',
+            timestamp: Date.now(),
+            type: 'error',
+            content: '已中止',
+          }
+          this.addMessage(abortMsg)
+          this.setStatus('aborted')
+          return
+        }
+
         const toolCallMsg: ToolCallMessage = {
           id: this.newId(),
           role: 'assistant',
