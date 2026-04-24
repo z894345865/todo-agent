@@ -27,7 +27,7 @@ export async function getAllTodos(): Promise<Todo[]> {
 
 export async function addTodo(todo: Todo): Promise<void> {
   const db = await getDB()
-  await db.add(STORE_NAME, todo)
+  await db.put(STORE_NAME, todo)
 }
 
 export async function updateTodo(todo: Todo): Promise<void> {
@@ -42,11 +42,11 @@ export async function deleteTodo(id: string): Promise<void> {
 
 export async function getTodoStats(): Promise<TodoStats> {
   const todos = await getAllTodos()
-  const startOfDay = new Date().setHours(0, 0, 0, 0)
-  const startOfWeek = new Date(startOfDay - new Date().getDay() * 86400000).getTime()
+  const startOfDayMs = new Date().setHours(0, 0, 0, 0)
+  const startOfWeekMs = startOfDayMs - new Date(startOfDayMs).getDay() * 86400000
 
   const completed = todos.filter((t) => t.completed)
-  const weeklyCompleted = completed.filter((t) => (t.completedAt ?? 0) >= startOfWeek)
+  const weeklyCompleted = completed.filter((t) => (t.completedAt ?? 0) >= startOfWeekMs)
 
   return {
     total: todos.length,
