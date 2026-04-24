@@ -55,14 +55,14 @@ export const todoTools: Record<string, Tool> = {
 
   todo_complete: {
     name: 'todo_complete',
-    description: 'Mark a TODO as completed by text match',
-    inputSchema: z.object({ text: z.string() }),
+    description: 'Mark a TODO as completed by id',
+    inputSchema: z.object({ id: z.string() }),
     execute: async (input: unknown) => {
-      const { text } = input as { text: string }
+      const { id } = input as { id: string }
       const store = useTodoStore.getState()
       if (!store) return 'Error: TodoStore not initialized'
-      const todo = store.getByText(text)
-      if (!todo) return `No TODO found matching: "${text}"`
+      const todo = store.todos.find((t) => t.id === id)
+      if (!todo) return `No TODO found with id: "${id}"`
       await store.complete(todo.id)
       return `Completed: "${todo.text}"`
     },
@@ -70,14 +70,14 @@ export const todoTools: Record<string, Tool> = {
 
   todo_uncomplete: {
     name: 'todo_uncomplete',
-    description: 'Re-open a completed TODO by text match',
-    inputSchema: z.object({ text: z.string() }),
+    description: 'Re-open a completed TODO by id',
+    inputSchema: z.object({ id: z.string() }),
     execute: async (input: unknown) => {
-      const { text } = input as { text: string }
+      const { id } = input as { id: string }
       const store = useTodoStore.getState()
       if (!store) return 'Error: TodoStore not initialized'
-      const todo = store.getByText(text)
-      if (!todo) return `No TODO found matching: "${text}"`
+      const todo = store.todos.find((t) => t.id === id)
+      if (!todo) return `No TODO found with id: "${id}"`
       await store.uncomplete(todo.id)
       return `Re-opened: "${todo.text}"`
     },
@@ -85,14 +85,14 @@ export const todoTools: Record<string, Tool> = {
 
   todo_delete: {
     name: 'todo_delete',
-    description: 'Delete a TODO by text match',
-    inputSchema: z.object({ text: z.string() }),
+    description: 'Delete a TODO by id',
+    inputSchema: z.object({ id: z.string() }),
     execute: async (input: unknown) => {
-      const { text } = input as { text: string }
+      const { id } = input as { id: string }
       const store = useTodoStore.getState()
       if (!store) return 'Error: TodoStore not initialized'
-      const todo = store.getByText(text)
-      if (!todo) return `No TODO found matching: "${text}"`
+      const todo = store.todos.find((t) => t.id === id)
+      if (!todo) return `No TODO found with id: "${id}"`
       await store.delete(todo.id)
       return `Deleted: "${todo.text}"`
     },
@@ -100,7 +100,7 @@ export const todoTools: Record<string, Tool> = {
 
   todo_update: {
     name: 'todo_update',
-    description: 'Update TODO fields by id (priority, dueDate, tags, description, text)',
+    description: 'Update TODO fields by id (text, priority, dueDate, tags, description, completed)',
     inputSchema: z.object({
       id: z.string(),
       text: z.string().optional(),
@@ -108,15 +108,17 @@ export const todoTools: Record<string, Tool> = {
       dueDate: z.string().optional(),
       tags: z.array(z.string()).optional(),
       description: z.string().optional(),
+      completed: z.boolean().optional(),
     }),
     execute: async (input: unknown) => {
-      const { id, text, priority, dueDate, tags: tagNames, description } = input as {
+      const { id, text, priority, dueDate, tags: tagNames, description, completed } = input as {
         id: string;
         text?: string;
         priority?: 'high' | 'medium' | 'low';
         dueDate?: string;
         tags?: string[];
         description?: string;
+        completed?: boolean;
       }
       const store = useTodoStore.getState()
       const todo = store.todos.find((t) => t.id === id)
@@ -127,6 +129,10 @@ export const todoTools: Record<string, Tool> = {
       if (priority !== undefined) updated.priority = priority
       if (dueDate !== undefined) updated.dueDate = new Date(dueDate).getTime()
       if (description !== undefined) updated.description = description
+      if (completed !== undefined) {
+        updated.completed = completed
+        updated.completedAt = completed ? Date.now() : undefined
+      }
 
       await db.updateTodo(updated)
 
@@ -143,7 +149,7 @@ export const todoTools: Record<string, Tool> = {
 
   todo_list: {
     name: 'todo_list',
-    description: 'List all TODOs, optionally filtered by status',
+    description: 'List all TODOs, filter by status (all/active/completed, default all)',
     inputSchema: z.object({ status: z.string().optional() }),
     execute: async (input: unknown) => {
       const { status } = input as { status?: string }
