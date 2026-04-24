@@ -95,7 +95,8 @@ export class AgentCore {
         return
       }
 
-      const response = await this.callLLM()
+      const abortController = new AbortController()
+      const response = await this.callLLM(abortController)
 
       if (this.abortFlag) {
         const abortMsg: ErrorMessage = {
@@ -186,7 +187,7 @@ export class AgentCore {
     }
   }
 
-  private async callLLM(): Promise<{
+  private async callLLM(abortController: AbortController): Promise<{
     content?: string
     tool_calls?: Array<{ name: string; args: Record<string, unknown> }>
   }> {
@@ -243,6 +244,7 @@ export class AgentCore {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.apiKey}`,
       },
+      signal: abortController.signal,
       body: JSON.stringify({ model: this.model, messages: msgs, tools, stream: false }),
     })
 
