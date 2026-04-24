@@ -136,6 +136,11 @@ export function TodoEditModal({ todoId, onClose }: TodoEditModalProps) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} id="completed-check" />
             <label htmlFor="completed-check" style={{ fontSize: 14 }}>已完成</label>
+            {todo.completedAt && (
+              <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }}>
+                完成于 {new Date(todo.completedAt).toLocaleDateString('zh-CN')}
+              </span>
+            )}
           </div>
         </div>
 
