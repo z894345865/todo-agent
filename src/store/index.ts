@@ -23,6 +23,7 @@ export interface TodoStore {
   delete: (id: string) => Promise<void>
   getByText: (text: string) => Todo | undefined
   addTag: (name: string, color: string) => Promise<Tag>
+  updateTag: (id: string, name: string, color: string) => Promise<void>
   deleteTag: (id: string) => Promise<void>
   addTagToTodo: (todoId: string, tagId: string) => Promise<void>
   setTodoTags: (todoId: string, tagIds: string[]) => Promise<void>
@@ -105,6 +106,16 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     set({ tags })
     notify()
     return tag
+  },
+
+  updateTag: async (id: string, name: string, color: string) => {
+    const existingTag = get().tags.find((t) => t.id === id)
+    if (!existingTag) return
+    const updated: Tag = { ...existingTag, name, color }
+    await db.updateTag(updated)
+    const tags = await db.getAllTags()
+    set({ tags })
+    notify()
   },
 
   deleteTag: async (id: string) => {
