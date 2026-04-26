@@ -7,7 +7,7 @@ import { TagBadge } from './TagBadge'
 import { TodoEditModal } from './TodoEditModal'
 import type { Todo, Tag } from '../types'
 
-const PRIORITY_ORDER: Record<string, number> = { high: 3, medium: 2, low: 1 }
+const PRIORITY_ORDER: Record<string, number> = { high: 1, medium: 2, low: 3 }
 
 export function TodoTable() {
   const todos = useTodoStore((s) => s.todos)
@@ -88,7 +88,7 @@ export function TodoTable() {
       if (sortCol === 'priority') {
         const pa = PRIORITY_ORDER[a.priority ?? ''] ?? 0
         const pb = PRIORITY_ORDER[b.priority ?? ''] ?? 0
-        return desc ? pb - pa : pa - pb
+        return desc ? pa - pb : pb - pa
       }
       if (sortCol === 'dueDate') {
         const da = a.dueDate ?? Number.MAX_SAFE_INTEGER
@@ -217,7 +217,6 @@ size: 100,
     state: { sorting },
     onSortingChange: handleSortingChange,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     enableColumnResizing: true,
     columnResizeMode: 'onChange',
   })
