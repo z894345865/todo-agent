@@ -123,12 +123,12 @@ export function TodoEditModal({ todoId, onClose }: TodoEditModalProps) {
           {/* 描述 */}
           <div>
             <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>描述</div>
-            <input
-              type="text"
+            <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="可选"
-              style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }}
+              rows={3}
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14, boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
             />
           </div>
 
