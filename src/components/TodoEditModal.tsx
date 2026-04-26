@@ -55,9 +55,11 @@ export function TodoEditModal({ todoId, onClose }: TodoEditModalProps) {
     onClose()
   }
 
-  const handleDelete = async () => {
-    await store.delete(todoId)
+  const handleDelete = () => {
+    // 先关闭弹窗，避免状态更新导致的竞态
     onClose()
+    // 然后执行删除操作
+    store.delete(todoId)
   }
 
   const modalContentRef = useRef<HTMLDivElement>(null)
