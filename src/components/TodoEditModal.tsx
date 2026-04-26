@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTodoStore } from '../store'
 import { getTodoTags, getTagsByIds, updateTodo } from '../db'
 import { PrioritySelector } from './PrioritySelector'
@@ -60,15 +60,61 @@ export function TodoEditModal({ todoId, onClose }: TodoEditModalProps) {
     onClose()
   }
 
+  const modalContentRef = useRef<HTMLDivElement>(null)
+  const dragSelectingRef = useRef(false)
+
+  // 判断 mouseup 是否发生在弹框内容外部
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target !== e.currentTarget) return
+    if (dragSelectingRef.current) {
+      dragSelectingRef.current = false
+      return
+    }
+    onClose()
+  }
+
+  useEffect(() => {
+    let mouseDownInContent = false
+
+    const handleMouseDown = (e: MouseEvent) => {
+      // 记录按下时是否在弹框内容内
+      mouseDownInContent = modalContentRef.current?.contains(e.target as Node) ?? false
+    }
+
+    const handleSelectStart = (e: Event) => {
+      // 如果是在弹框内容内开始选择，才标记为拖拽选择
+      if (modalContentRef.current?.contains(e.target as Node)) {
+        dragSelectingRef.current = true
+      }
+    }
+
+    const handleMouseUp = () => {
+      // 如果是在弹框内容内按下且开始过选择，释放时标记
+      if (mouseDownInContent) {
+        dragSelectingRef.current = true
+      }
+    }
+
+    document.addEventListener('mousedown', handleMouseDown)
+    document.addEventListener('selectstart', handleSelectStart)
+    document.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown)
+      document.removeEventListener('selectstart', handleSelectStart)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [])
+
   return (
     <div
       style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000,
       }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={handleBackdropClick}
     >
       <div
+        ref={modalContentRef}
         style={{
           background: '#fff', borderRadius: 12, width: 440, maxHeight: '80vh',
           overflowY: 'auto', display: 'flex', flexDirection: 'column',
