@@ -13,14 +13,14 @@ export function TaskToolbar() {
           <button
             className={`task-toolbar__view-button${view.id === activeViewId ? ' is-active' : ''}`}
             key={view.id}
-            onClick={() => void setActiveView(view.id)}
+            onClick={() => void setActiveView(view.id).catch(console.error)}
             type="button"
           >
             {view.name}
           </button>
         ))}
       </div>
-      <button className="task-toolbar__create-button" onClick={() => void createTask({ title: '新任务' })} type="button">
+      <button className="task-toolbar__create-button" onClick={() => void createTask({ title: '新任务' }).catch(console.error)} type="button">
         新建任务
       </button>
     </div>
