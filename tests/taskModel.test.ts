@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createTask, getTaskSummary, groupTasks, normalizeTask } from '../src/tasks/model.ts'
+import { applyFilters, applySorts, createTask, getTaskSummary, groupTasks, normalizeTask } from '../src/tasks/model.ts'
 import { DEFAULT_FIELDS, DEFAULT_VIEWS } from '../src/tasks/defaults.ts'
 import type { Task } from '../src/tasks/types.ts'
 
@@ -36,6 +36,28 @@ test('groupTasks groups by status and priority', () => {
 
   assert.equal(groupTasks(tasks, 'status').todo.length, 1)
   assert.equal(groupTasks(tasks, 'priority').low.length, 1)
+})
+
+test('applyFilters filters tasks by doing status', () => {
+  const tasks: Task[] = [
+    createTask({ title: 'A', status: 'todo' }, '2026-04-27T12:00:00.000Z'),
+    createTask({ title: 'B', status: 'doing' }, '2026-04-27T12:00:00.000Z'),
+  ]
+
+  const filtered = applyFilters(tasks, [{ fieldId: 'status', operator: 'is', value: 'doing' }])
+
+  assert.deepEqual(filtered.map((task) => task.title), ['B'])
+})
+
+test('applySorts sorts priority ascending from urgent to low', () => {
+  const tasks: Task[] = [
+    createTask({ title: 'Low', priority: 'low' }, '2026-04-27T12:00:00.000Z'),
+    createTask({ title: 'Urgent', priority: 'urgent' }, '2026-04-27T12:00:00.000Z'),
+  ]
+
+  const sorted = applySorts(tasks, [{ fieldId: 'priority', direction: 'asc' }])
+
+  assert.deepEqual(sorted.map((task) => task.title), ['Urgent', 'Low'])
 })
 
 test('getTaskSummary counts total, active, completed, overdue, and dueToday', () => {
