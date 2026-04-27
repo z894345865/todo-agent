@@ -1,11 +1,24 @@
 import { z } from 'zod'
 import { useTaskStore } from './store.ts'
-import type { Tag, Task, TaskPriority, TaskStatus } from './types.ts'
+import type { Tag, Task, TaskPriority, TaskStatus, ViewDefinition } from './types.ts'
 
 const taskStatusSchema = z.enum(['todo', 'doing', 'done', 'blocked'])
 const taskListStatusSchema = z.enum(['all', 'todo', 'doing', 'done', 'blocked'])
 const taskPrioritySchema = z.enum(['urgent', 'high', 'medium', 'low'])
 const taskListPrioritySchema = z.enum(['all', 'urgent', 'high', 'medium', 'low'])
+const viewTypeSchema = z.enum(['grid', 'kanban', 'calendar'])
+const fieldIdSchema = z.enum(['title', 'status', 'priority', 'tagIds', 'dueDate', 'completedAt', 'description', 'createdAt'])
+const filterOperatorSchema = z.enum(['is', 'isNot', 'contains', 'isEmpty', 'isNotEmpty', 'before', 'after', 'between'])
+const sortDirectionSchema = z.enum(['asc', 'desc'])
+const filterRuleSchema = z.object({
+  fieldId: fieldIdSchema,
+  operator: filterOperatorSchema,
+  value: z.unknown().optional(),
+})
+const sortRuleSchema = z.object({
+  fieldId: fieldIdSchema,
+  direction: sortDirectionSchema,
+})
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   const date = new Date(`${value}T00:00:00.000Z`)
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
@@ -137,6 +150,24 @@ export const taskTools: Record<string, Tool> = {
     },
   },
 
+  filter_tasks: {
+    name: 'filter_tasks',
+    description: 'Filter tasks by structured status, priority, tag names, due date, overdue state, and optional limit.',
+    inputSchema: z.object({
+      status: taskListStatusSchema.optional(),
+      priority: taskListPrioritySchema.optional(),
+      tags: z.array(z.string()).optional(),
+      dueDate: dateSchema.nullable().optional(),
+      overdue: z.boolean().optional(),
+      limit: limitSchema,
+    }),
+    execute: async (args) => {
+      const input = filterTasksInputSchema.parse(args)
+      const tasks = filterTasks(useTaskStore.getState().tasks, input).slice(0, input.limit)
+      return formatTaskList(tasks)
+    },
+  },
+
   search_tasks: {
     name: 'search_tasks',
     description: 'Search tasks by title, description, status, priority, due date, or tag name.',
@@ -157,6 +188,51 @@ export const taskTools: Record<string, Tool> = {
         return haystack.includes(normalizedQuery)
       })
       return formatTaskList(tasks)
+    },
+  },
+
+  create_tag: {
+    name: 'create_tag',
+    description: 'Create or reuse a tag by name.',
+    inputSchema: z.object({ name: z.string() }),
+    execute: async (args) => {
+      const { name } = createTagInputSchema.parse(args)
+      const tag = await useTaskStore.getState().createTag(name)
+      return `Tag: "${tag.name}" [id: ${tag.id}] | color: ${tag.color}`
+    },
+  },
+
+  update_view: {
+    name: 'update_view',
+    description: 'Update the active or specified view with validated type, filters, sorts, group field, and visible fields.',
+    inputSchema: z.object({
+      id: z.string().optional(),
+      type: viewTypeSchema.optional(),
+      filters: z.array(filterRuleSchema).optional(),
+      sorts: z.array(sortRuleSchema).optional(),
+      groupBy: fieldIdSchema.nullable().optional(),
+      visibleFieldIds: z.array(fieldIdSchema).optional(),
+    }),
+    execute: async (args) => {
+      const input = updateViewInputSchema.parse(args)
+      const state = useTaskStore.getState()
+      const viewId = input.id ?? state.activeViewId
+      const existingView = state.views.find((view) => view.id === viewId)
+      if (!existingView) {
+        return `No view found with id: "${viewId}"`
+      }
+
+      const view: ViewDefinition = {
+        ...existingView,
+        ...(input.type ? { type: input.type } : {}),
+        ...(input.filters ? { filters: input.filters } : {}),
+        ...(input.sorts ? { sorts: input.sorts } : {}),
+        ...(input.visibleFieldIds ? { visibleFieldIds: input.visibleFieldIds } : {}),
+        ...(input.groupBy !== undefined ? (input.groupBy === null ? { groupBy: undefined } : { groupBy: input.groupBy }) : {}),
+      }
+
+      const updatedView = await useTaskStore.getState().updateView(view)
+      return `Updated view: "${updatedView.name}" [id: ${updatedView.id}] | type: ${updatedView.type}`
     },
   },
 
@@ -207,7 +283,26 @@ const listTasksInputSchema = taskTools.list_tasks.inputSchema as z.ZodObject<{
   dueDate: z.ZodOptional<z.ZodNullable<typeof dateSchema>>
   limit: typeof limitSchema
 }>
+const filterTasksInputSchema = taskTools.filter_tasks.inputSchema as z.ZodObject<{
+  status: z.ZodOptional<typeof taskListStatusSchema>
+  priority: z.ZodOptional<typeof taskListPrioritySchema>
+  tags: z.ZodOptional<z.ZodArray<z.ZodString>>
+  dueDate: z.ZodOptional<z.ZodNullable<typeof dateSchema>>
+  overdue: z.ZodOptional<z.ZodBoolean>
+  limit: typeof limitSchema
+}>
 const searchTasksInputSchema = z.object({ query: z.string() })
+const createTagInputSchema = taskTools.create_tag.inputSchema as z.ZodObject<{
+  name: z.ZodString
+}>
+const updateViewInputSchema = taskTools.update_view.inputSchema as z.ZodObject<{
+  id: z.ZodOptional<z.ZodString>
+  type: z.ZodOptional<typeof viewTypeSchema>
+  filters: z.ZodOptional<z.ZodArray<typeof filterRuleSchema>>
+  sorts: z.ZodOptional<z.ZodArray<typeof sortRuleSchema>>
+  groupBy: z.ZodOptional<z.ZodNullable<typeof fieldIdSchema>>
+  visibleFieldIds: z.ZodOptional<z.ZodArray<typeof fieldIdSchema>>
+}>
 const summaryInputSchema = z.object({})
 
 async function getOrCreateTagIds(tagNames: string[] | undefined): Promise<string[]> {
@@ -235,8 +330,11 @@ function filterTasks(
     priority?: TaskPriority | 'all'
     tags?: string[]
     dueDate?: string | null
+    overdue?: boolean
   }
 ): Task[] {
+  const today = new Date().toISOString().slice(0, 10)
+
   return tasks.filter((task) => {
     if (input.status && input.status !== 'all' && task.status !== input.status) {
       return false
@@ -248,6 +346,13 @@ function filterTasks(
 
     if (input.dueDate !== undefined && input.dueDate !== null && task.dueDate !== input.dueDate) {
       return false
+    }
+
+    if (input.overdue !== undefined) {
+      const overdue = Boolean(task.dueDate && task.dueDate < today && task.status !== 'done')
+      if (overdue !== input.overdue) {
+        return false
+      }
     }
 
     if (input.tags && input.tags.length > 0) {

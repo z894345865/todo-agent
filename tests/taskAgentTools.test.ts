@@ -82,6 +82,89 @@ test('search_tasks matches title, description, and tag names', async () => {
   assert.match(await taskTools.search_tasks.execute({ query: 'docs' }), /Write release notes/)
 })
 
+test('required PageAgent tools are registered', () => {
+  assert.equal(typeof taskTools.filter_tasks?.execute, 'function')
+  assert.equal(typeof taskTools.create_tag?.execute, 'function')
+  assert.equal(typeof taskTools.update_view?.execute, 'function')
+})
+
+test('filter_tasks returns formatted tasks for structured filters including overdue and limit', async () => {
+  await resetTaskStore()
+  await taskTools.create_task.execute({
+    title: 'Fix blocked production bug',
+    status: 'blocked',
+    priority: 'urgent',
+    dueDate: '2000-01-01',
+    tags: ['ops'],
+  })
+  await taskTools.create_task.execute({
+    title: 'Plan quarterly roadmap',
+    status: 'doing',
+    priority: 'high',
+    dueDate: '2999-01-01',
+    tags: ['planning'],
+  })
+  await taskTools.create_task.execute({
+    title: 'Document closed incident',
+    status: 'done',
+    priority: 'urgent',
+    dueDate: '2000-01-01',
+    tags: ['ops'],
+  })
+
+  const result = await taskTools.filter_tasks.execute({
+    status: 'blocked',
+    priority: 'urgent',
+    tags: ['ops'],
+    dueDate: '2000-01-01',
+    overdue: true,
+    limit: 1,
+  })
+
+  assert.match(result, /Fix blocked production bug/)
+  assert.match(result, /status: blocked/)
+  assert.match(result, /priority: urgent/)
+  assert.match(result, /due: 2000-01-01/)
+  assert.match(result, /tags: ops/)
+  assert.doesNotMatch(result, /Plan quarterly roadmap/)
+  assert.doesNotMatch(result, /Document closed incident/)
+})
+
+test('create_tag creates and reuses tags by name', async () => {
+  await resetTaskStore()
+
+  const created = await taskTools.create_tag.execute({ name: 'Customer' })
+  const reused = await taskTools.create_tag.execute({ name: ' customer ' })
+
+  assert.match(created, /^Tag: "Customer" \[id: .+\] \| color: #[0-9a-f]{6}$/i)
+  assert.equal(reused, created)
+  assert.equal(useTaskStore.getState().tags.length, 1)
+  assert.equal(useTaskStore.getState().tags[0].name, 'Customer')
+})
+
+test('update_view updates the active view and rejects unknown fields', async () => {
+  await resetTaskStore()
+
+  const result = await taskTools.update_view.execute({
+    filters: [{ fieldId: 'status', operator: 'is', value: 'doing' }],
+    sorts: [{ fieldId: 'priority', direction: 'asc' }],
+    groupBy: 'status',
+    visibleFieldIds: ['title', 'status', 'priority'],
+  })
+
+  const view = useTaskStore.getState().views.find((item) => item.id === useTaskStore.getState().activeViewId)
+  assert.match(result, /Updated view: "Grid" \[id: grid-default\]/)
+  assert.deepEqual(view?.filters, [{ fieldId: 'status', operator: 'is', value: 'doing' }])
+  assert.deepEqual(view?.sorts, [{ fieldId: 'priority', direction: 'asc' }])
+  assert.equal(view?.groupBy, 'status')
+  assert.deepEqual(view?.visibleFieldIds, ['title', 'status', 'priority'])
+
+  assert.throws(
+    () => taskTools.update_view.inputSchema.parse({ visibleFieldIds: ['title', 'missing-field'] }),
+    /Invalid enum value|invalid/i
+  )
+})
+
 test('get_task_summary returns task totals', async () => {
   await resetTaskStore()
   await useTaskStore.getState().createTask({ title: 'Open task', dueDate: '2026-04-26' })
