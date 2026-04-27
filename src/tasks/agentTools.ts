@@ -5,6 +5,12 @@ import type { Tag, Task, TaskPriority, TaskStatus } from './types.ts'
 const taskStatusSchema = z.enum(['todo', 'doing', 'done', 'blocked'])
 const taskListStatusSchema = z.enum(['all', 'todo', 'doing', 'done', 'blocked'])
 const taskPrioritySchema = z.enum(['urgent', 'high', 'medium', 'low'])
+const taskListPrioritySchema = z.enum(['all', 'urgent', 'high', 'medium', 'low'])
+const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+  const date = new Date(`${value}T00:00:00.000Z`)
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+}, 'Expected a valid YYYY-MM-DD date')
+const limitSchema = z.number().int().positive().max(100).optional()
 
 export interface Tool {
   name: string
@@ -21,7 +27,7 @@ export const taskTools: Record<string, Tool> = {
       title: z.string(),
       status: taskStatusSchema.optional(),
       priority: taskPrioritySchema.optional(),
-      dueDate: z.string().optional(),
+      dueDate: dateSchema.optional(),
       tags: z.array(z.string()).optional(),
       description: z.string().optional(),
     }),
@@ -49,7 +55,7 @@ export const taskTools: Record<string, Tool> = {
       title: z.string().optional(),
       status: taskStatusSchema.optional(),
       priority: taskPrioritySchema.optional(),
-      dueDate: z.string().nullable().optional(),
+      dueDate: dateSchema.nullable().optional(),
       description: z.string().nullable().optional(),
       tags: z.array(z.string()).optional(),
     }),
@@ -119,10 +125,10 @@ export const taskTools: Record<string, Tool> = {
     description: 'List tasks with optional status, priority, tag, and due date filters.',
     inputSchema: z.object({
       status: taskListStatusSchema.optional(),
-      priority: z.union([taskPrioritySchema, z.literal('all')]).optional(),
+      priority: taskListPrioritySchema.optional(),
       tags: z.array(z.string()).optional(),
-      dueDate: z.string().nullable().optional(),
-      limit: z.number().optional(),
+      dueDate: dateSchema.nullable().optional(),
+      limit: limitSchema,
     }),
     execute: async (args) => {
       const input = listTasksInputSchema.parse(args)
@@ -178,7 +184,7 @@ const createTaskInputSchema = taskTools.create_task.inputSchema as z.ZodObject<{
   title: z.ZodString
   status: z.ZodOptional<typeof taskStatusSchema>
   priority: z.ZodOptional<typeof taskPrioritySchema>
-  dueDate: z.ZodOptional<z.ZodString>
+  dueDate: z.ZodOptional<typeof dateSchema>
   tags: z.ZodOptional<z.ZodArray<z.ZodString>>
   description: z.ZodOptional<z.ZodString>
 }>
@@ -188,7 +194,7 @@ const updateTaskInputSchema = taskTools.update_task.inputSchema as z.ZodObject<{
   title: z.ZodOptional<z.ZodString>
   status: z.ZodOptional<typeof taskStatusSchema>
   priority: z.ZodOptional<typeof taskPrioritySchema>
-  dueDate: z.ZodOptional<z.ZodNullable<z.ZodString>>
+  dueDate: z.ZodOptional<z.ZodNullable<typeof dateSchema>>
   description: z.ZodOptional<z.ZodNullable<z.ZodString>>
   tags: z.ZodOptional<z.ZodArray<z.ZodString>>
 }>
@@ -196,10 +202,10 @@ const updateTaskInputSchema = taskTools.update_task.inputSchema as z.ZodObject<{
 const idInputSchema = z.object({ id: z.string() })
 const listTasksInputSchema = taskTools.list_tasks.inputSchema as z.ZodObject<{
   status: z.ZodOptional<typeof taskListStatusSchema>
-  priority: z.ZodOptional<z.ZodUnion<[typeof taskPrioritySchema, z.ZodLiteral<'all'>]>>
+  priority: z.ZodOptional<typeof taskListPrioritySchema>
   tags: z.ZodOptional<z.ZodArray<z.ZodString>>
-  dueDate: z.ZodOptional<z.ZodNullable<z.ZodString>>
-  limit: z.ZodOptional<z.ZodNumber>
+  dueDate: z.ZodOptional<z.ZodNullable<typeof dateSchema>>
+  limit: typeof limitSchema
 }>
 const searchTasksInputSchema = z.object({ query: z.string() })
 const summaryInputSchema = z.object({})

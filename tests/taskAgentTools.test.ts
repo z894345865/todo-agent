@@ -94,3 +94,18 @@ test('get_task_summary returns task totals', async () => {
   assert.match(result, /Active: 1/)
   assert.match(result, /Completed: 1/)
 })
+
+test('task tool schemas reject invalid due dates', () => {
+  assert.equal(taskTools.create_task.inputSchema.safeParse({ title: 'Invalid date', dueDate: '2026-2-3' }).success, false)
+  assert.equal(taskTools.update_task.inputSchema.safeParse({ id: 'task-1', dueDate: '2026-02-30' }).success, false)
+  assert.equal(taskTools.list_tasks.inputSchema.safeParse({ dueDate: 'tomorrow' }).success, false)
+  assert.equal(taskTools.update_task.inputSchema.safeParse({ id: 'task-1', dueDate: null }).success, true)
+  assert.equal(taskTools.list_tasks.inputSchema.safeParse({ dueDate: null }).success, true)
+})
+
+test('list_tasks schema rejects invalid limits', () => {
+  assert.equal(taskTools.list_tasks.inputSchema.safeParse({ limit: -1 }).success, false)
+  assert.equal(taskTools.list_tasks.inputSchema.safeParse({ limit: 1.5 }).success, false)
+  assert.equal(taskTools.list_tasks.inputSchema.safeParse({ limit: 101 }).success, false)
+  assert.equal(taskTools.list_tasks.inputSchema.safeParse({ limit: 100 }).success, true)
+})

@@ -22,6 +22,7 @@ test('list_tasks schema keeps optional filters optional and exposes status and l
 
   assert.equal(schema.required, undefined)
   assert.deepEqual(schema.properties.status.enum, ['all', 'todo', 'doing', 'done', 'blocked'])
+  assert.deepEqual(schema.properties.priority.enum, ['all', 'urgent', 'high', 'medium', 'low'])
   assert.equal(schema.properties.limit.type, 'number')
   assert.equal(schema.properties.tags.type, 'array')
   assert.equal(schema.properties.tags.items.type, 'string')
