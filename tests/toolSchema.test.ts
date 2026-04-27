@@ -14,6 +14,7 @@ test('create_task schema requires title and keeps task fields optional', () => {
   assert.equal(schema.properties.tags.type, 'array')
   assert.equal(schema.properties.tags.items.type, 'string')
   assert.equal(schema.properties.dueDate.type, 'string')
+  assert.equal(schema.properties.dueDate.pattern, '^\\d{4}-\\d{2}-\\d{2}$')
   assert.equal(schema.properties.description.type, 'string')
 })
 
@@ -23,10 +24,13 @@ test('list_tasks schema keeps optional filters optional and exposes status and l
   assert.equal(schema.required, undefined)
   assert.deepEqual(schema.properties.status.enum, ['all', 'todo', 'doing', 'done', 'blocked'])
   assert.deepEqual(schema.properties.priority.enum, ['all', 'urgent', 'high', 'medium', 'low'])
-  assert.equal(schema.properties.limit.type, 'number')
+  assert.ok(schema.properties.limit.type === 'integer' || schema.properties.limit.multipleOf === 1)
+  assert.equal(schema.properties.limit.exclusiveMinimum, 0)
+  assert.equal(schema.properties.limit.maximum, 100)
   assert.equal(schema.properties.tags.type, 'array')
   assert.equal(schema.properties.tags.items.type, 'string')
   assert.equal(schema.properties.dueDate.nullable, true)
+  assert.equal(schema.properties.dueDate.pattern, '^\\d{4}-\\d{2}-\\d{2}$')
 })
 
 test('update_task schema supports nullable due date and description with valid enums', () => {
@@ -36,5 +40,6 @@ test('update_task schema supports nullable due date and description with valid e
   assert.deepEqual(schema.properties.status.enum, ['todo', 'doing', 'done', 'blocked'])
   assert.deepEqual(schema.properties.priority.enum, ['urgent', 'high', 'medium', 'low'])
   assert.equal(schema.properties.dueDate.nullable, true)
+  assert.equal(schema.properties.dueDate.pattern, '^\\d{4}-\\d{2}-\\d{2}$')
   assert.equal(schema.properties.description.nullable, true)
 })
