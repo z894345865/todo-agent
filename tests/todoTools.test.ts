@@ -1,26 +1,33 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { todoTools } from '../src/agent/tools.ts'
-import { useTodoStore } from '../src/store/index.ts'
+import { __resetTaskDataForTests } from '../src/tasks/db.ts'
+import { useTaskStore } from '../src/tasks/store.ts'
 
-async function resetStore() {
-  const store = useTodoStore.getState()
-  const todos = await store.init().then(() => useTodoStore.getState().todos)
-  for (const todo of todos) {
-    await store.delete(todo.id)
-  }
+async function resetTaskStore() {
+  await __resetTaskDataForTests()
+  useTaskStore.setState({
+    tasks: [],
+    tags: [],
+    fields: [],
+    views: [],
+    activeViewId: 'grid-default',
+    selectedTaskId: undefined,
+    loading: false,
+    error: null,
+  })
+  await useTaskStore.getState().init()
 }
 
-test('todo_list filters active and completed todos by status', async () => {
-  const store = useTodoStore.getState()
-  await resetStore()
+test('list_tasks filters tasks by status', async () => {
+  await resetTaskStore()
 
-  const active = await store.add('Active tool test')
-  const completed = await store.add('Completed tool test')
-  await store.complete(completed.id)
+  const active = await useTaskStore.getState().createTask({ title: 'Active tool test', status: 'doing' })
+  const completed = await useTaskStore.getState().createTask({ title: 'Completed tool test' })
+  await useTaskStore.getState().completeTask(completed.id)
 
-  const activeList = await todoTools.todo_list.execute({ status: 'active' })
-  const completedList = await todoTools.todo_list.execute({ status: 'completed' })
+  const activeList = await todoTools.list_tasks.execute({ status: 'doing' })
+  const completedList = await todoTools.list_tasks.execute({ status: 'done' })
 
   assert.match(activeList, new RegExp(active.id))
   assert.doesNotMatch(activeList, new RegExp(completed.id))
@@ -28,45 +35,61 @@ test('todo_list filters active and completed todos by status', async () => {
   assert.doesNotMatch(completedList, new RegExp(active.id))
 })
 
-test('todo_list filters todos by priority', async () => {
-  const store = useTodoStore.getState()
-  await resetStore()
+test('list_tasks filters tasks by priority', async () => {
+  await resetTaskStore()
 
-  const high = await store.add('High priority tool test', { priority: 'high' })
-  const low = await store.add('Low priority tool test', { priority: 'low' })
+  const high = await useTaskStore.getState().createTask({ title: 'High priority tool test', priority: 'high' })
+  const low = await useTaskStore.getState().createTask({ title: 'Low priority tool test', priority: 'low' })
 
-  const highList = await todoTools.todo_list.execute({ priority: 'high' })
+  const highList = await todoTools.list_tasks.execute({ priority: 'high' })
 
   assert.match(highList, new RegExp(high.id))
   assert.doesNotMatch(highList, new RegExp(low.id))
-  assert.match(highList, /优先级: high/)
+  assert.match(highList, /priority: high/)
 })
 
-test('todo_list filters todos by tag', async () => {
-  const store = useTodoStore.getState()
-  await resetStore()
+test('create_task creates task and tags when tags are supplied', async () => {
+  await resetTaskStore()
 
-  const tag = await store.addTag('work', '#3B82F6')
-  const tagged = await store.add('Tagged tool test')
-  const untagged = await store.add('Untagged tool test')
-  await store.addTagToTodo(tagged.id, tag.id)
+  const result = await todoTools.create_task.execute({
+    title: 'Tagged tool test',
+    tags: ['work', 'agent'],
+    priority: 'urgent',
+  })
 
-  const taggedList = await todoTools.todo_list.execute({ tags: ['work'] })
+  const task = useTaskStore.getState().tasks[0]
+  const tags = useTaskStore.getState().tags
+  assert.match(result, /Created task/)
+  assert.equal(task.title, 'Tagged tool test')
+  assert.equal(task.priority, 'urgent')
+  assert.deepEqual(
+    tags.map((tag) => tag.name),
+    ['work', 'agent']
+  )
+  assert.deepEqual(task.tagIds, tags.map((tag) => tag.id))
+})
 
-  assert.match(taggedList, new RegExp(tagged.id))
+test('list_tasks filters tasks by tag', async () => {
+  await resetTaskStore()
+
+  const taggedResult = await todoTools.create_task.execute({ title: 'Tagged list test', tags: ['work'] })
+  const untagged = await useTaskStore.getState().createTask({ title: 'Untagged list test' })
+
+  const taggedList = await todoTools.list_tasks.execute({ tags: ['work'] })
+
+  assert.match(taggedList, /Tagged list test/)
+  assert.match(taggedList, /tags: work/)
+  assert.match(taggedResult, /tags: work/)
   assert.doesNotMatch(taggedList, new RegExp(untagged.id))
-  assert.match(taggedList, /标签: work/)
 })
 
-test('todo_list filters overdue todos', async () => {
-  const store = useTodoStore.getState()
-  await resetStore()
+test('complete_task marks task done', async () => {
+  await resetTaskStore()
+  const task = await useTaskStore.getState().createTask({ title: 'Finish compatibility tests' })
 
-  const overdue = await store.add('Overdue tool test', { dueDate: Date.now() - 86400000 })
-  const future = await store.add('Future tool test', { dueDate: Date.now() + 86400000 })
+  const result = await todoTools.complete_task.execute({ id: task.id })
 
-  const overdueList = await todoTools.todo_list.execute({ overdue: 'yes' })
-
-  assert.match(overdueList, new RegExp(overdue.id))
-  assert.doesNotMatch(overdueList, new RegExp(future.id))
+  const updatedTask = useTaskStore.getState().tasks.find((item) => item.id === task.id)
+  assert.match(result, /Completed task/)
+  assert.equal(updatedTask?.status, 'done')
 })

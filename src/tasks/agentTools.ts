@@ -3,6 +3,7 @@ import { useTaskStore } from './store.ts'
 import type { Tag, Task, TaskPriority, TaskStatus } from './types.ts'
 
 const taskStatusSchema = z.enum(['todo', 'doing', 'done', 'blocked'])
+const taskListStatusSchema = z.enum(['all', 'todo', 'doing', 'done', 'blocked'])
 const taskPrioritySchema = z.enum(['urgent', 'high', 'medium', 'low'])
 
 export interface Tool {
@@ -117,14 +118,15 @@ export const taskTools: Record<string, Tool> = {
     name: 'list_tasks',
     description: 'List tasks with optional status, priority, tag, and due date filters.',
     inputSchema: z.object({
-      status: z.union([taskStatusSchema, z.literal('all')]).optional(),
+      status: taskListStatusSchema.optional(),
       priority: z.union([taskPrioritySchema, z.literal('all')]).optional(),
       tags: z.array(z.string()).optional(),
       dueDate: z.string().nullable().optional(),
+      limit: z.number().optional(),
     }),
     execute: async (args) => {
       const input = listTasksInputSchema.parse(args)
-      const tasks = filterTasks(useTaskStore.getState().tasks, input)
+      const tasks = filterTasks(useTaskStore.getState().tasks, input).slice(0, input.limit)
       return formatTaskList(tasks)
     },
   },
@@ -193,10 +195,11 @@ const updateTaskInputSchema = taskTools.update_task.inputSchema as z.ZodObject<{
 
 const idInputSchema = z.object({ id: z.string() })
 const listTasksInputSchema = taskTools.list_tasks.inputSchema as z.ZodObject<{
-  status: z.ZodOptional<z.ZodUnion<[typeof taskStatusSchema, z.ZodLiteral<'all'>]>>
+  status: z.ZodOptional<typeof taskListStatusSchema>
   priority: z.ZodOptional<z.ZodUnion<[typeof taskPrioritySchema, z.ZodLiteral<'all'>]>>
   tags: z.ZodOptional<z.ZodArray<z.ZodString>>
   dueDate: z.ZodOptional<z.ZodNullable<z.ZodString>>
+  limit: z.ZodOptional<z.ZodNumber>
 }>
 const searchTasksInputSchema = z.object({ query: z.string() })
 const summaryInputSchema = z.object({})
