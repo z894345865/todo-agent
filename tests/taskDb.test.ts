@@ -5,6 +5,8 @@ import {
   addTaskRecord,
   deleteTaskRecord,
   getAllTaskRecords,
+  getTaskData,
+  setActiveViewId,
   updateTaskRecord,
 } from '../src/tasks/db.ts'
 import type { Task } from '../src/tasks/types.ts'
@@ -31,4 +33,23 @@ test('task db stores, updates, and deletes records', async () => {
 
   await deleteTaskRecord(firstTask.id)
   assert.deepEqual(await getAllTaskRecords(), [])
+})
+
+test('task db returns cloned task records', async () => {
+  await __resetTaskDataForTests()
+  await addTaskRecord(firstTask)
+
+  const records = await getAllTaskRecords()
+  records[0].title = 'Mutated outside storage'
+  records[0].tagIds.push('tag-1')
+
+  assert.deepEqual(await getAllTaskRecords(), [firstTask])
+})
+
+test('task db exposes normalized cache immediately after saving', async () => {
+  await __resetTaskDataForTests()
+
+  await setActiveViewId('')
+
+  assert.equal((await getTaskData()).ui.activeViewId, 'grid-default')
 })

@@ -36,9 +36,10 @@ async function readFromDisk(): Promise<TaskAppData> {
 async function saveData(data: TaskAppData): Promise<void> {
   const normalized = normalizeTaskData(data)
 
+  memoryData = normalized
+  dataPromise = Promise.resolve(memoryData)
+
   if (!isTauri()) {
-    memoryData = normalized
-    dataPromise = Promise.resolve(memoryData)
     return
   }
 
@@ -58,12 +59,12 @@ export async function getTaskData(): Promise<TaskAppData> {
   if (!dataPromise) {
     dataPromise = readFromDisk()
   }
-  return dataPromise
+  return normalizeTaskData(await dataPromise)
 }
 
 export async function getAllTaskRecords(): Promise<Task[]> {
   const data = await getTaskData()
-  return [...data.tasks]
+  return data.tasks.map((task) => normalizeTask(task))
 }
 
 export async function addTaskRecord(task: Task): Promise<void> {

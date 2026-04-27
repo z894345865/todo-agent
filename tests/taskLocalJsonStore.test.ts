@@ -42,3 +42,109 @@ test('normalizeTaskData keeps valid tasks and fills missing tags and default UI'
   assert.deepEqual(normalized.views.map((view) => view.type), ['grid', 'kanban', 'calendar'])
   assert.equal(normalized.ui.activeViewId, 'grid-default')
 })
+
+test('normalizeTaskData rejects invalid field type', () => {
+  assert.throws(
+    () =>
+      normalizeTaskData({
+        fields: [{ id: 'custom', name: 'Custom', type: 'bogus' }],
+      }),
+    /field type is invalid/
+  )
+})
+
+test('normalizeTaskData rejects invalid view type', () => {
+  assert.throws(
+    () =>
+      normalizeTaskData({
+        views: [{ id: 'custom', name: 'Custom', type: 'timeline', visibleFieldIds: [], filters: [], sorts: [] }],
+      }),
+    /view type is invalid/
+  )
+})
+
+test('normalizeTaskData rejects malformed field options', () => {
+  assert.throws(
+    () =>
+      normalizeTaskData({
+        fields: [{ id: 'custom', name: 'Custom', type: 'singleSelect', options: [{ id: 'one', name: 1 }] }],
+      }),
+    /field option name is required/
+  )
+})
+
+test('normalizeTaskData rejects malformed view filters', () => {
+  assert.throws(
+    () =>
+      normalizeTaskData({
+        views: [
+          {
+            id: 'custom',
+            name: 'Custom',
+            type: 'grid',
+            visibleFieldIds: [],
+            filters: [{ fieldId: 'status', operator: 'equals', value: 'todo' }],
+            sorts: [],
+          },
+        ],
+      }),
+    /filter operator is invalid/
+  )
+})
+
+test('normalizeTaskData rejects malformed view sorts', () => {
+  assert.throws(
+    () =>
+      normalizeTaskData({
+        views: [
+          {
+            id: 'custom',
+            name: 'Custom',
+            type: 'grid',
+            visibleFieldIds: [],
+            filters: [],
+            sorts: [{ fieldId: 'createdAt', direction: 'sideways' }],
+          },
+        ],
+      }),
+    /sort direction is invalid/
+  )
+})
+
+test('normalizeTaskData clones nested field and view state', () => {
+  const input = {
+    fields: [
+      {
+        id: 'custom',
+        name: 'Custom',
+        type: 'singleSelect',
+        options: [{ id: 'one', name: 'One', color: '#111111' }],
+      },
+    ],
+    views: [
+      {
+        id: 'custom',
+        name: 'Custom',
+        type: 'grid',
+        visibleFieldIds: ['title'],
+        filters: [{ fieldId: 'status', operator: 'is', value: 'todo' }],
+        sorts: [{ fieldId: 'createdAt', direction: 'desc' }],
+        columnWidths: { title: 300 },
+      },
+    ],
+  }
+
+  const normalized = normalizeTaskData(input)
+
+  input.fields[0].options[0].name = 'Changed option'
+  input.views[0].visibleFieldIds[0] = 'priority'
+  input.views[0].filters[0].fieldId = 'priority'
+  input.views[0].sorts[0].direction = 'asc'
+  input.views[0].columnWidths.title = 999
+
+  assert.equal(normalized.fields[0].options?.[0].name, 'One')
+  assert.deepEqual(normalized.views[0].visibleFieldIds, ['title'])
+  assert.deepEqual(normalized.views[0].filters, [{ fieldId: 'status', operator: 'is', value: 'todo' }])
+  assert.deepEqual(normalized.views[0].sorts, [{ fieldId: 'createdAt', direction: 'desc' }])
+  assert.deepEqual(normalized.views[0].columnWidths, { title: 300 })
+})
