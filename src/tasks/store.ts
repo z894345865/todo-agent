@@ -1,0 +1,275 @@
+import { create } from 'zustand'
+import { TAG_COLORS } from './defaults.ts'
+import * as db from './db.ts'
+import {
+  applyFilters,
+  applySorts,
+  createTask as createTaskModel,
+  getTaskSummary,
+  updateTask as updateTaskModel,
+} from './model.ts'
+import type { FieldDefinition, Tag, Task, TaskSummary, ViewDefinition } from './types.ts'
+
+type Listener = () => void
+type TaskInput = Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>> & {
+  id?: string
+  title: string
+  createdAt?: string
+  updatedAt?: string
+}
+type TaskUpdates = Partial<Omit<Task, 'id' | 'createdAt'>>
+
+const listeners = new Set<Listener>()
+let writeQueue = Promise.resolve()
+let preparedTasksCache:
+  | {
+      tasks: Task[]
+      view: ViewDefinition | undefined
+      viewId: string | undefined
+      result: Task[]
+    }
+  | undefined
+
+function notifyExternal(): void {
+  listeners.forEach((listener) => {
+    try {
+      listener()
+    } catch {
+      // Listener failures are isolated so successful store mutations still resolve.
+    }
+  })
+}
+
+function serializeWrite<T>(operation: () => Promise<T>): Promise<T> {
+  const result = writeQueue.catch(() => undefined).then(operation)
+  writeQueue = result.then(
+    () => undefined,
+    () => undefined
+  )
+  return result
+}
+
+function cloneView(view: ViewDefinition): ViewDefinition {
+  return {
+    ...view,
+    visibleFieldIds: [...view.visibleFieldIds],
+    filters: view.filters.map((filter) => ({ ...filter })),
+    sorts: view.sorts.map((sort) => ({ ...sort })),
+    ...(view.columnWidths ? { columnWidths: { ...view.columnWidths } } : {}),
+  }
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+export interface TaskStore {
+  tasks: Task[]
+  tags: Tag[]
+  fields: FieldDefinition[]
+  views: ViewDefinition[]
+  activeViewId: string
+  selectedTaskId: string | undefined
+  loading: boolean
+  error: string | null
+  init: () => Promise<void>
+  createTask: (input: TaskInput) => Promise<Task>
+  updateTask: (id: string, updates: TaskUpdates) => Promise<Task | undefined>
+  deleteTask: (id: string) => Promise<void>
+  completeTask: (id: string) => Promise<Task | undefined>
+  createTag: (name: string) => Promise<Tag>
+  updateView: (view: ViewDefinition) => Promise<ViewDefinition>
+  setActiveView: (viewId: string) => Promise<void>
+  setSelectedTask: (taskId: string | undefined) => Promise<void>
+  getPreparedTasks: (viewId?: string) => Task[]
+  getSummary: () => TaskSummary
+  subscribeExternal: (listener: Listener) => () => void
+}
+
+export const useTaskStore = create<TaskStore>((set, get) => ({
+  tasks: [],
+  tags: [],
+  fields: [],
+  views: [],
+  activeViewId: 'grid-default',
+  selectedTaskId: undefined,
+  loading: false,
+  error: null,
+
+  init: async () => {
+    set({ loading: true, error: null })
+    try {
+      const data = await db.getTaskData()
+      set({
+        tasks: data.tasks,
+        tags: data.tags,
+        fields: data.fields,
+        views: data.views,
+        activeViewId: data.ui.activeViewId,
+        selectedTaskId: data.ui.selectedTaskId,
+        loading: false,
+      })
+    } catch (error) {
+      set({ error: String(error), loading: false })
+    }
+  },
+
+  createTask: (input) =>
+    serializeWrite(async () => {
+      const task = createTaskModel(input)
+      await db.addTaskRecord(task)
+      const data = await db.getTaskData()
+      const storedTask = data.tasks.find((item) => item.id === task.id) ?? task
+      set({
+        tasks: data.tasks,
+        selectedTaskId: data.ui.selectedTaskId,
+        error: null,
+      })
+      notifyExternal()
+      return storedTask
+    }),
+
+  updateTask: (id, updates) =>
+    serializeWrite(async () => {
+      const latestData = await db.getTaskData()
+      const task = latestData.tasks.find((item) => item.id === id)
+      if (!task) {
+        return undefined
+      }
+
+      const updated = updateTaskModel(task, updates)
+      await db.updateTaskRecord(updated)
+      const data = await db.getTaskData()
+      const storedTask = data.tasks.find((item) => item.id === id) ?? updated
+      set({
+        tasks: data.tasks,
+        selectedTaskId: data.ui.selectedTaskId,
+        error: null,
+      })
+      notifyExternal()
+      return storedTask
+    }),
+
+  deleteTask: (id) =>
+    serializeWrite(async () => {
+      await db.deleteTaskRecord(id)
+      const data = await db.getTaskData()
+      set({
+        tasks: data.tasks,
+        selectedTaskId: data.ui.selectedTaskId,
+        error: null,
+      })
+      notifyExternal()
+    }),
+
+  completeTask: (id) => get().updateTask(id, { status: 'done' }),
+
+  createTag: (name) =>
+    serializeWrite(async () => {
+      try {
+        const normalizedName = name.trim()
+        if (!normalizedName) {
+          throw new Error('tag name is required')
+        }
+
+        const data = await db.getTaskData()
+        const existingTag = data.tags.find((tag) => tag.name.toLocaleLowerCase() === normalizedName.toLocaleLowerCase())
+        if (existingTag) {
+          set({ tags: data.tags, error: null })
+          return existingTag
+        }
+
+        const tag: Tag = {
+          id: crypto.randomUUID(),
+          name: normalizedName,
+          color: TAG_COLORS[data.tags.length % TAG_COLORS.length],
+        }
+
+        await db.addTagRecord(tag)
+        const nextData = await db.getTaskData()
+        const storedTag = nextData.tags.find((item) => item.id === tag.id) ?? tag
+        set({
+          tags: nextData.tags,
+          error: null,
+        })
+        notifyExternal()
+        return storedTag
+      } catch (error) {
+        set({ error: getErrorMessage(error) })
+        throw error
+      }
+    }),
+
+  updateView: (view) =>
+    serializeWrite(async () => {
+      await db.updateViewRecord(cloneView(view))
+      const data = await db.getTaskData()
+      const storedView = data.views.find((item) => item.id === view.id)
+      if (!storedView) {
+        throw new Error('view was not saved')
+      }
+
+      set({
+        views: data.views,
+        activeViewId: data.ui.activeViewId,
+        error: null,
+      })
+      notifyExternal()
+      return storedView
+    }),
+
+  setActiveView: (viewId) =>
+    serializeWrite(async () => {
+      const data = await db.getTaskData()
+      const fallbackViewId = data.views.find((view) => view.id === 'grid-default')?.id ?? data.views[0]?.id ?? 'grid-default'
+      const normalizedViewId = viewId.trim() === '' || !data.views.some((view) => view.id === viewId) ? fallbackViewId : viewId
+      await db.setActiveViewId(normalizedViewId)
+      const nextData = await db.getTaskData()
+      set({ activeViewId: nextData.ui.activeViewId, error: null })
+      notifyExternal()
+    }),
+
+  setSelectedTask: (taskId) =>
+    serializeWrite(async () => {
+      const data = await db.getTaskData()
+      const normalizedTaskId = taskId && data.tasks.some((task) => task.id === taskId) ? taskId : undefined
+      await db.setSelectedTaskId(normalizedTaskId)
+      const nextData = await db.getTaskData()
+      set({ selectedTaskId: nextData.ui.selectedTaskId, error: null })
+      notifyExternal()
+    }),
+
+  getPreparedTasks: (viewId) => {
+    const state = get()
+    const view = state.views.find((item) => item.id === (viewId ?? state.activeViewId))
+    if (!view) {
+      return state.tasks
+    }
+
+    if (
+      preparedTasksCache?.tasks === state.tasks &&
+      preparedTasksCache.view === view &&
+      preparedTasksCache.viewId === viewId
+    ) {
+      return preparedTasksCache.result
+    }
+
+    const result = applySorts(applyFilters(state.tasks, view.filters), view.sorts)
+    preparedTasksCache = {
+      tasks: state.tasks,
+      view,
+      viewId,
+      result,
+    }
+    return result
+  },
+
+  getSummary: () => getTaskSummary(get().tasks),
+
+  subscribeExternal: (listener) => {
+    listeners.add(listener)
+    return () => listeners.delete(listener)
+  },
+}))
+
+;(globalThis as typeof globalThis & { __taskStore?: typeof useTaskStore }).__taskStore = useTaskStore

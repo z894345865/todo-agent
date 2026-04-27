@@ -38,8 +38,8 @@ function schemaToJson(schema: z.ZodType): unknown {
     return isRecord(inner) ? { ...inner, nullable: true } : { nullable: true }
   }
 
-  if (def.type === 'string') return { type: 'string' }
-  if (def.type === 'number') return { type: 'number' }
+  if (def.type === 'string') return stringToJsonSchema(def)
+  if (def.type === 'number') return numberToJsonSchema(def)
   if (def.type === 'boolean') return { type: 'boolean' }
 
   if (def.type === 'enum') {
@@ -51,6 +51,65 @@ function schemaToJson(schema: z.ZodType): unknown {
   }
 
   return {}
+}
+
+function stringToJsonSchema(def: any): Record<string, unknown> {
+  const schema: Record<string, unknown> = { type: 'string' }
+
+  for (const check of def.checks ?? []) {
+    const checkDef = getCheckDef(check)
+    if (checkDef?.check === 'string_format' && checkDef.format === 'regex' && checkDef.pattern instanceof RegExp) {
+      schema.pattern = checkDef.pattern.source
+    }
+  }
+
+  return schema
+}
+
+function numberToJsonSchema(def: any): Record<string, unknown> {
+  const schema: Record<string, unknown> = { type: 'number' }
+
+  for (const check of def.checks ?? []) {
+    const checkDef = getCheckDef(check)
+    if (!checkDef) continue
+
+    if (checkDef.check === 'number_format' && (checkDef.format === 'safeint' || checkDef.format === 'int32' || checkDef.format === 'uint32')) {
+      schema.type = 'integer'
+      continue
+    }
+
+    if (checkDef.check === 'greater_than' && typeof checkDef.value === 'number') {
+      if (checkDef.inclusive) {
+        schema.minimum = checkDef.value
+        delete schema.exclusiveMinimum
+      } else {
+        schema.exclusiveMinimum = checkDef.value
+        delete schema.minimum
+      }
+      continue
+    }
+
+    if (checkDef.check === 'less_than' && typeof checkDef.value === 'number') {
+      if (checkDef.inclusive) {
+        schema.maximum = checkDef.value
+        delete schema.exclusiveMaximum
+      } else {
+        schema.exclusiveMaximum = checkDef.value
+        delete schema.maximum
+      }
+      continue
+    }
+
+    if (checkDef.check === 'multiple_of' && typeof checkDef.value === 'number') {
+      schema.multipleOf = checkDef.value
+    }
+  }
+
+  return schema
+}
+
+function getCheckDef(check: any): any {
+  return check?._zod?.def ?? check?.def
 }
 
 function unwrapOptional(schema: z.ZodType): { schema: z.ZodType; optional: boolean } {
