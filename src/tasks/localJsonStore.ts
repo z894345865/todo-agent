@@ -47,15 +47,16 @@ export function normalizeTaskData(value: unknown): TaskDataFile {
   }
 
   const ui = isRecord(value.ui) ? value.ui : {}
+  const views = normalizeViews(value.views)
 
   return {
     version: 1,
     tasks: arrayField(value, 'tasks').map((task) => normalizeTask(task)),
     tags: arrayField(value, 'tags').map((tag) => normalizeTag(tag)),
     fields: normalizeFields(value.fields),
-    views: normalizeViews(value.views),
+    views,
     ui: {
-      activeViewId: normalizeActiveViewId(ui.activeViewId),
+      activeViewId: normalizeActiveViewId(ui.activeViewId, views),
       ...(typeof ui.selectedTaskId === 'string' ? { selectedTaskId: ui.selectedTaskId } : {}),
     },
   }
@@ -272,8 +273,15 @@ function normalizeSortRule(value: unknown): SortRule {
   }
 }
 
-function normalizeActiveViewId(value: unknown): string {
-  return typeof value === 'string' && value.trim() !== '' ? value : 'grid-default'
+function normalizeActiveViewId(value: unknown, views: ViewDefinition[]): string {
+  const fallbackView = views.find((view) => view.id === 'grid-default') ?? views[0]
+  const fallbackId = fallbackView?.id ?? 'grid-default'
+
+  if (typeof value !== 'string' || value.trim() === '') {
+    return fallbackId
+  }
+
+  return views.some((view) => view.id === value) ? value : fallbackId
 }
 
 function arrayField(value: Record<string, unknown>, field: string): unknown[] {

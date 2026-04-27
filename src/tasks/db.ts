@@ -5,14 +5,38 @@ import type { Tag, Task, TaskAppData, ViewDefinition } from './types.ts'
 import { createEmptyTaskData, normalizeTaskData } from './localJsonStore.ts'
 
 const DATA_FILE = 'task-data.json'
+const DEV_DATA_ENDPOINT = '/__task_data'
 
 let dataPromise: Promise<TaskAppData> | null = null
 let memoryData: TaskAppData = createEmptyTaskData()
 let writeQueue = Promise.resolve()
 
+async function readDevTaskDataFile(): Promise<TaskAppData | null> {
+  try {
+    const response = await fetch(DEV_DATA_ENDPOINT, { headers: { Accept: 'application/json' } })
+    if (!response.ok) return null
+    return normalizeTaskData(await response.json())
+  } catch {
+    return null
+  }
+}
+
+async function writeDevTaskDataFile(data: TaskAppData): Promise<boolean> {
+  try {
+    const response = await fetch(DEV_DATA_ENDPOINT, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
 async function readFromDisk(): Promise<TaskAppData> {
   if (!isTauri()) {
-    return memoryData
+    return (await readDevTaskDataFile()) ?? memoryData
   }
 
   const fileExists = await exists(DATA_FILE, { baseDir: BaseDirectory.AppData })
@@ -40,6 +64,7 @@ async function saveData(data: TaskAppData): Promise<void> {
   dataPromise = Promise.resolve(memoryData)
 
   if (!isTauri()) {
+    await writeDevTaskDataFile(normalized)
     return
   }
 
@@ -118,7 +143,14 @@ export async function setSelectedTaskId(taskId: string | undefined): Promise<voi
   })
 }
 
-export async function __resetTaskDataForTests(data: TaskAppData = createEmptyTaskData()): Promise<void> {
+export async function __resetTaskDataForTests(data: TaskAppData | null = createEmptyTaskData()): Promise<void> {
+  if (data === null) {
+    memoryData = createEmptyTaskData()
+    dataPromise = null
+    writeQueue = Promise.resolve()
+    return
+  }
+
   memoryData = normalizeTaskData(data)
   dataPromise = Promise.resolve(memoryData)
   writeQueue = Promise.resolve()

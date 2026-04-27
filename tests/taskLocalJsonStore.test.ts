@@ -14,6 +14,13 @@ test('createEmptyTaskData includes version, defaults, and empty records', () => 
   assert.equal(data.ui.selectedTaskId, undefined)
 })
 
+test('default grid view filters to active tasks', () => {
+  const data = createEmptyTaskData()
+  const gridView = data.views.find((view) => view.id === 'grid-default')
+
+  assert.deepEqual(gridView?.filters, [{ fieldId: 'status', operator: 'isNot', value: 'done' }])
+})
+
 test('normalizeTaskData rejects non-object root', () => {
   assert.throws(() => normalizeTaskData(null), /task data root must be an object/)
 })
@@ -41,6 +48,24 @@ test('normalizeTaskData keeps valid tasks and fills missing tags and default UI'
   assert.ok(normalized.fields.some((field) => field.id === 'status'))
   assert.deepEqual(normalized.views.map((view) => view.type), ['grid', 'kanban', 'calendar'])
   assert.equal(normalized.ui.activeViewId, 'grid-default')
+})
+
+test('normalizeTaskData repairs unknown activeViewId to an existing default view', () => {
+  const normalized = normalizeTaskData({
+    views: [
+      {
+        id: 'custom-grid',
+        name: 'Custom grid',
+        type: 'grid',
+        visibleFieldIds: ['title'],
+        filters: [],
+        sorts: [],
+      },
+    ],
+    ui: { activeViewId: 'missing-view' },
+  })
+
+  assert.equal(normalized.ui.activeViewId, 'custom-grid')
 })
 
 test('normalizeTaskData rejects invalid field type', () => {

@@ -35,7 +35,7 @@ export const DEFAULT_VIEWS: ViewDefinition[] = [
     name: 'Grid',
     type: 'grid',
     visibleFieldIds: ['title', 'status', 'priority', 'tagIds', 'dueDate', 'description', 'createdAt'],
-    filters: [],
+    filters: [{ fieldId: 'status', operator: 'isNot', value: 'done' }],
     sorts: [{ fieldId: 'createdAt', direction: 'desc' }],
     columnWidths: { title: 260, status: 120, priority: 100, tagIds: 180, dueDate: 120, description: 260, createdAt: 140 },
   },
