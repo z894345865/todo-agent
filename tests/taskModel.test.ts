@@ -60,6 +60,19 @@ test('applySorts sorts priority ascending from urgent to low', () => {
   assert.deepEqual(sorted.map((task) => task.title), ['Urgent', 'Low'])
 })
 
+test('applyFilters between excludes tasks with empty dueDate', () => {
+  const tasks: Task[] = [
+    createTask({ title: 'No date' }, '2026-04-27T12:00:00.000Z'),
+    createTask({ title: 'In range', dueDate: '2026-04-28' }, '2026-04-27T12:00:00.000Z'),
+  ]
+
+  const filtered = applyFilters(tasks, [
+    { fieldId: 'dueDate', operator: 'between', value: ['2026-04-27', '2026-04-30'] },
+  ])
+
+  assert.deepEqual(filtered.map((task) => task.title), ['In range'])
+})
+
 test('getTaskSummary counts total, active, completed, overdue, and dueToday', () => {
   const tasks: Task[] = [
     createTask({ title: 'Late', status: 'todo', dueDate: '2026-04-26' }, '2026-04-27T12:00:00.000Z'),

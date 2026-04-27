@@ -186,9 +186,9 @@ function matchesFilter(task: Task, filter: FilterRule, today: Date | string): bo
     case 'isNotEmpty':
       return !isEmptyValue(taskValue)
     case 'before':
-      return compareDateLike(taskValue, filter.value, today) < 0
+      return isBeforeDate(taskValue, filter.value, today)
     case 'after':
-      return compareDateLike(taskValue, filter.value, today) > 0
+      return isAfterDate(taskValue, filter.value, today)
     case 'between':
       return isBetween(taskValue, filter.value, today)
   }
@@ -220,22 +220,34 @@ function containsValue(taskValue: unknown, filterValue: unknown): boolean {
 
 function isBetween(taskValue: unknown, filterValue: unknown, today: Date | string): boolean {
   const [start, end] = getRange(filterValue)
-  if (start === undefined || end === undefined) {
+  const taskDate = resolveDateValue(taskValue, today)
+  const startDate = resolveDateValue(start, today)
+  const endDate = resolveDateValue(end, today)
+  if (!taskDate || !startDate || !endDate) {
     return false
   }
 
-  return compareDateLike(taskValue, start, today) >= 0 && compareDateLike(taskValue, end, today) <= 0
+  return taskDate >= startDate && taskDate <= endDate
 }
 
-function compareDateLike(left: unknown, right: unknown, today: Date | string): number {
-  const leftDate = resolveDateValue(left, today)
-  const rightDate = resolveDateValue(right, today)
-
-  if (!leftDate || !rightDate) {
-    return 0
+function isBeforeDate(taskValue: unknown, filterValue: unknown, today: Date | string): boolean {
+  const taskDate = resolveDateValue(taskValue, today)
+  const filterDate = resolveDateValue(filterValue, today)
+  if (!taskDate || !filterDate) {
+    return false
   }
 
-  return leftDate.localeCompare(rightDate)
+  return taskDate < filterDate
+}
+
+function isAfterDate(taskValue: unknown, filterValue: unknown, today: Date | string): boolean {
+  const taskDate = resolveDateValue(taskValue, today)
+  const filterDate = resolveDateValue(filterValue, today)
+  if (!taskDate || !filterDate) {
+    return false
+  }
+
+  return taskDate > filterDate
 }
 
 function resolveDateValue(value: unknown, today: Date | string): string | undefined {
