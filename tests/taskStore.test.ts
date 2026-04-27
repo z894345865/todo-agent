@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { __resetTaskDataForTests } from '../src/tasks/db.ts'
+import { DEFAULT_VIEWS } from '../src/tasks/defaults.ts'
 import { useTaskStore } from '../src/tasks/store.ts'
 import type { Task, ViewDefinition } from '../src/tasks/types.ts'
 
@@ -62,11 +63,19 @@ test('concurrent updateTask calls preserve changes to different fields', async (
 })
 
 test('setActiveView normalizes empty ids back to the default view', async () => {
-  await resetStore()
+  await resetStore({ tasks: [baseTask], views: DEFAULT_VIEWS, ui: { activeViewId: 'kanban-status' } })
 
   await useTaskStore.getState().setActiveView('')
 
   assert.equal(useTaskStore.getState().activeViewId, 'grid-default')
+})
+
+test('setActiveView falls back to the first available view when default grid is missing', async () => {
+  await resetStore()
+
+  await useTaskStore.getState().setActiveView('')
+
+  assert.equal(useTaskStore.getState().activeViewId, 'custom-view')
 })
 
 test('setSelectedTask clears unknown task ids', async () => {

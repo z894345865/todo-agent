@@ -221,7 +221,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   setActiveView: (viewId) =>
     serializeWrite(async () => {
       const data = await db.getTaskData()
-      const normalizedViewId = viewId.trim() === '' || !data.views.some((view) => view.id === viewId) ? 'grid-default' : viewId
+      const fallbackViewId = data.views.find((view) => view.id === 'grid-default')?.id ?? data.views[0]?.id ?? 'grid-default'
+      const normalizedViewId = viewId.trim() === '' || !data.views.some((view) => view.id === viewId) ? fallbackViewId : viewId
       await db.setActiveViewId(normalizedViewId)
       const nextData = await db.getTaskData()
       set({ activeViewId: nextData.ui.activeViewId, error: null })
