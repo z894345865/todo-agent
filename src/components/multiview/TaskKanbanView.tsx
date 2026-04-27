@@ -1,6 +1,6 @@
 import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { groupTasks } from '../../tasks/model.ts'
 import { useTaskStore } from '../../tasks/store.ts'
 import type { Task, TaskStatus, ViewDefinition } from '../../tasks/types.ts'
@@ -27,6 +27,7 @@ export function TaskKanbanView({ view }: TaskKanbanViewProps) {
   const tasks = useTaskStore((state) => state.getPreparedTasks(view.id))
   const updateTask = useTaskStore((state) => state.updateTask)
   const setSelectedTask = useTaskStore((state) => state.setSelectedTask)
+  const [dragError, setDragError] = useState<string>()
   const groupBy = view.groupBy ?? 'status'
 
   const groups = useMemo(() => groupTasks(tasks, groupBy), [groupBy, tasks])
@@ -46,31 +47,44 @@ export function TaskKanbanView({ view }: TaskKanbanViewProps) {
   }, [groupBy, groups])
 
   const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const taskId = event.active.data.current?.taskId
+    async (event: DragEndEvent) => {
+      const taskId = event.active.id
       const status = event.over?.data.current?.status
-      if (!taskId || !status) {
+      if (!taskId || !isTaskStatus(status)) {
         return
       }
 
-      void updateTask(String(taskId), { status }).catch(console.error)
+      setDragError(undefined)
+      try {
+        await updateTask(String(taskId), { status })
+      } catch (error) {
+        console.error(error)
+        setDragError('移动任务失败，请重试。')
+      }
     },
     [updateTask]
   )
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
-      <div className="task-kanban-view">
-        {columns.map((column) => (
-          <KanbanColumn
-            key={column.id}
-            id={column.id}
-            label={column.label}
-            status={isTaskStatus(column.id) ? column.id : undefined}
-            tasks={column.tasks}
-            onSelectTask={setSelectedTask}
-          />
-        ))}
+      <div className="task-kanban-view-shell">
+        {dragError && (
+          <div className="task-kanban-view__error" role="alert">
+            {dragError}
+          </div>
+        )}
+        <div className="task-kanban-view">
+          {columns.map((column) => (
+            <KanbanColumn
+              key={column.id}
+              id={column.id}
+              label={column.label}
+              status={isTaskStatus(column.id) ? column.id : undefined}
+              tasks={column.tasks}
+              onSelectTask={setSelectedTask}
+            />
+          ))}
+        </div>
       </div>
     </DndContext>
   )
@@ -112,8 +126,7 @@ interface KanbanTaskCardProps {
 
 function KanbanTaskCard({ task, onSelectTask }: KanbanTaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: `kanban-task-${task.id}`,
-    data: { taskId: task.id },
+    id: task.id,
   })
   const style = transform
     ? {
@@ -140,6 +153,6 @@ function KanbanTaskCard({ task, onSelectTask }: KanbanTaskCardProps) {
   )
 }
 
-function isTaskStatus(value: string): value is TaskStatus {
-  return STATUS_COLUMNS.some((column) => column.id === value)
+function isTaskStatus(value: unknown): value is TaskStatus {
+  return typeof value === 'string' && STATUS_COLUMNS.some((column) => column.id === value)
 }

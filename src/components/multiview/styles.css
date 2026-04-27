@@ -110,6 +110,21 @@
   font-size: 13px;
 }
 
+.task-kanban-view-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.task-kanban-view__error {
+  padding: 8px 10px;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
 .task-kanban-view {
   display: grid;
   grid-template-columns: repeat(4, minmax(180px, 1fr));
