@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import type { Todo, TodoStats, Tag } from '../types'
-import * as db from '../db'
+import type { Todo, TodoStats, Tag } from '../types/index.ts'
+import * as db from '../db/index.ts'
 
 // Event emitter for cross-framework reactivity (PageAgent tools need to trigger React re-renders)
 type Listener = () => void

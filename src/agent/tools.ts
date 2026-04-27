@@ -1,8 +1,8 @@
-import { useTodoStore } from '../store'
+import { useTodoStore } from '../store/index.ts'
 import { z } from 'zod'
-import * as db from '../db'
-import { TAG_COLORS } from '../db'
-import type { Tag } from '../types'
+import * as db from '../db/index.ts'
+import { TAG_COLORS } from '../db/index.ts'
+import type { Tag } from '../types/index.ts'
 
 export interface Tool {
   name: string

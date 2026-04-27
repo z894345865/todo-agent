@@ -1,21 +1,19 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useReactTable, getCoreRowModel, getSortedRowModel, SortingState, ColumnDef, flexRender } from '@tanstack/react-table'
+import { useReactTable, getCoreRowModel, SortingState, ColumnDef, flexRender } from '@tanstack/react-table'
 import type { OnChangeFn } from '@tanstack/react-table'
 import { useTodoStore } from '../store'
-import { getTodoTags, getTagsByIds } from '../db'
+import { getTodoTags, getTagsByIds, getUiFilters, setUiFilters } from '../db'
 import { TagBadge } from './TagBadge'
 import { TodoEditModal } from './TodoEditModal'
 import type { Todo, Tag } from '../types'
 
 const PRIORITY_ORDER: Record<string, number> = { high: 1, medium: 2, low: 3 }
 
-const FILTER_STORAGE_KEY = 'todo-filters'
-
-function loadFilters(): Record<string, string> {
+function parseSorting(value: string | undefined): SortingState {
   try {
-    return JSON.parse(localStorage.getItem(FILTER_STORAGE_KEY) || '{}')
+    return value ? JSON.parse(value) : [{ id: 'createdAt', desc: true }]
   } catch {
-    return {}
+    return [{ id: 'createdAt', desc: true }]
   }
 }
 
@@ -25,20 +23,16 @@ export function TodoTable() {
   const complete = useTodoStore((s) => s.complete)
   const uncomplete = useTodoStore((s) => s.uncomplete)
 
-  const savedFilters = loadFilters()
-
-  const [sorting, setSorting] = useState<SortingState>(() => {
-    const s = savedFilters['sorting']
-    return s ? JSON.parse(s) : [{ id: 'createdAt', desc: true }]
-  })
-  const [filterPriority, setFilterPriority] = useState<string>(savedFilters['priority'] ?? '全部')
-  const [filterStatus, setFilterStatus] = useState<string>(savedFilters['status'] ?? '全部')
-  const [filterOverdue, setFilterOverdue] = useState<string>(savedFilters['overdue'] ?? '全部')
-  const [filterTag, setFilterTag] = useState<string>(savedFilters['tag'] ?? '全部')
-  const [filterDueDateStart, setFilterDueDateStart] = useState<string>(savedFilters['dueDateStart'] ?? '')
-  const [filterDueDateEnd, setFilterDueDateEnd] = useState<string>(savedFilters['dueDateEnd'] ?? '')
-  const [filterCompletedDateStart, setFilterCompletedDateStart] = useState<string>(savedFilters['completedDateStart'] ?? '')
-  const [filterCompletedDateEnd, setFilterCompletedDateEnd] = useState<string>(savedFilters['completedDateEnd'] ?? '')
+  const [sorting, setSorting] = useState<SortingState>(() => [{ id: 'createdAt', desc: true }])
+  const [filterPriority, setFilterPriority] = useState<string>('全部')
+  const [filterStatus, setFilterStatus] = useState<string>('全部')
+  const [filterOverdue, setFilterOverdue] = useState<string>('全部')
+  const [filterTag, setFilterTag] = useState<string>('全部')
+  const [filterDueDateStart, setFilterDueDateStart] = useState<string>('')
+  const [filterDueDateEnd, setFilterDueDateEnd] = useState<string>('')
+  const [filterCompletedDateStart, setFilterCompletedDateStart] = useState<string>('')
+  const [filterCompletedDateEnd, setFilterCompletedDateEnd] = useState<string>('')
+  const [filtersLoaded, setFiltersLoaded] = useState(false)
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null)
 
   // 加载每个 todo 的 tags
@@ -60,9 +54,30 @@ export function TodoTable() {
     return () => { cancelled = true }
   }, [todos])
 
-  // 保存筛选状态到 localStorage
   useEffect(() => {
-    localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify({
+    let cancelled = false
+    getUiFilters().then((filters) => {
+      if (cancelled) return
+      setSorting(parseSorting(filters['sorting']))
+      setFilterPriority(filters['priority'] ?? '全部')
+      setFilterStatus(filters['status'] ?? '全部')
+      setFilterOverdue(filters['overdue'] ?? '全部')
+      setFilterTag(filters['tag'] ?? '全部')
+      setFilterDueDateStart(filters['dueDateStart'] ?? '')
+      setFilterDueDateEnd(filters['dueDateEnd'] ?? '')
+      setFilterCompletedDateStart(filters['completedDateStart'] ?? '')
+      setFilterCompletedDateEnd(filters['completedDateEnd'] ?? '')
+      setFiltersLoaded(true)
+    }).catch(() => {
+      if (!cancelled) setFiltersLoaded(true)
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  // Save table filters in the local app data file.
+  useEffect(() => {
+    if (!filtersLoaded) return
+    setUiFilters({
       priority: filterPriority,
       status: filterStatus,
       overdue: filterOverdue,
@@ -72,8 +87,8 @@ export function TodoTable() {
       completedDateStart: filterCompletedDateStart,
       completedDateEnd: filterCompletedDateEnd,
       sorting: JSON.stringify(sorting),
-    }))
-  }, [filterPriority, filterStatus, filterOverdue, filterTag, filterDueDateStart, filterDueDateEnd, filterCompletedDateStart, filterCompletedDateEnd, sorting])
+    }).catch(console.error)
+  }, [filtersLoaded, filterPriority, filterStatus, filterOverdue, filterTag, filterDueDateStart, filterDueDateEnd, filterCompletedDateStart, filterCompletedDateEnd, sorting])
 
   // 筛选逻辑
   const filteredTodos = useMemo(() => {

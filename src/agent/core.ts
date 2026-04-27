@@ -1,7 +1,7 @@
 import type { Message, TextMessage, ToolCallMessage, ToolResultMessage, ErrorMessage } from '../types'
 import { todoTools } from './tools'
 import { SYSTEM_PROMPT } from './prompts'
-import { z } from 'zod'
+import { zodToJsonSchema } from './toolSchema'
 
 export class AbortError extends Error {
   constructor() {
@@ -258,7 +258,7 @@ export class AgentCore {
       function: {
         name: t.name,
         description: t.description,
-        parameters: this.zodToJsonSchema(t.inputSchema),
+        parameters: zodToJsonSchema(t.inputSchema),
       },
     }))
 
@@ -295,31 +295,5 @@ export class AgentCore {
       }
       throw e
     }
-  }
-
-  private zodToJsonSchema(schema: z.ZodType): Record<string, unknown> {
-    const def = (schema as any)._def
-    if (!def) return {}
-    if (def.type === 'object') {
-      const properties: Record<string, unknown> = {}
-      const required: string[] = []
-      const shape = def.shape || (() => ({}))()
-      for (const [key, val] of Object.entries(shape)) {
-        if (key === 'undefined' || key.startsWith('_')) continue
-        const vdef = (val as any)._def
-        if (!vdef) continue
-        if (vdef.type === 'string') properties[key] = { type: 'string' }
-        else if (vdef.type === 'number') properties[key] = { type: 'number' }
-        else if (vdef.type === 'boolean') properties[key] = { type: 'boolean' }
-        else if (vdef.typeName === 'ZodOptional') {
-          const inner = vdef.innerType?._def
-          if (inner?.type === 'string') properties[key] = { type: 'string' }
-          else if (inner?.type === 'number') properties[key] = { type: 'number' }
-        }
-        required.push(key)
-      }
-      return { type: 'object', properties, required }
-    }
-    return {}
   }
 }

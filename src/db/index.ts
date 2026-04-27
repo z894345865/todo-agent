@@ -1,29 +1,65 @@
-import { openDB, type IDBPDatabase } from 'idb'
-import type { Todo, TodoStats, Tag, TodoTag } from '../types'
+import { isTauri } from '@tauri-apps/api/core'
+import { BaseDirectory, exists, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
+import type { Todo, Tag } from '../types'
+import { readDevDataFile, writeDevDataFile } from './devFileStorage.ts'
+import { calculateTodoStats, createEmptyData, normalizeData, type TodoDataFile } from './localJsonStore.ts'
 
-const DB_NAME = 'todo-db'
-const STORE_NAME = 'todos'
-const DB_VERSION = 3
+const DATA_FILE = 'todo-data.json'
 
-let dbPromise: Promise<IDBPDatabase> | null = null
+let dataPromise: Promise<TodoDataFile> | null = null
+let memoryData: TodoDataFile = createEmptyData()
+let writeQueue = Promise.resolve()
 
-function getDB(): Promise<IDBPDatabase> {
-  if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME, { keyPath: 'id' })
-        }
-        if (!db.objectStoreNames.contains('tags')) {
-          db.createObjectStore('tags', { keyPath: 'id' })
-        }
-        if (!db.objectStoreNames.contains('todo_tags')) {
-          db.createObjectStore('todo_tags', { autoIncrement: true })
-        }
-      },
-    })
+async function readFromDisk(): Promise<TodoDataFile> {
+  if (!isTauri()) {
+    return (await readDevDataFile()) ?? memoryData
   }
-  return dbPromise
+
+  const fileExists = await exists(DATA_FILE, { baseDir: BaseDirectory.AppData })
+  if (!fileExists) {
+    const empty = createEmptyData()
+    await writeTextFile(DATA_FILE, JSON.stringify(empty, null, 2), { baseDir: BaseDirectory.AppData })
+    return empty
+  }
+
+  const text = await readTextFile(DATA_FILE, { baseDir: BaseDirectory.AppData })
+  try {
+    return normalizeData(JSON.parse(text))
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error(`Failed to parse ${DATA_FILE}: ${error.message}`)
+    }
+    throw error
+  }
+}
+
+async function getData(): Promise<TodoDataFile> {
+  if (!dataPromise) {
+    dataPromise = readFromDisk()
+  }
+  return dataPromise
+}
+
+async function saveData(data: TodoDataFile): Promise<void> {
+  if (!isTauri()) {
+    memoryData = normalizeData(data)
+    dataPromise = Promise.resolve(memoryData)
+    await writeDevDataFile(memoryData)
+    return
+  }
+
+  writeQueue = writeQueue.catch(() => undefined).then(() =>
+    writeTextFile(DATA_FILE, JSON.stringify(data, null, 2), { baseDir: BaseDirectory.AppData })
+  )
+  await writeQueue
+}
+
+async function updateData(mutator: (data: TodoDataFile) => void): Promise<void> {
+  const data = await getData()
+  mutator(data)
+  const normalized = normalizeData(data)
+  dataPromise = Promise.resolve(normalized)
+  await saveData(normalized)
 }
 
 export const TAG_COLORS = [
@@ -32,104 +68,94 @@ export const TAG_COLORS = [
 ]
 
 export async function getAllTags(): Promise<Tag[]> {
-  const db = await getDB()
-  return db.getAll('tags')
+  const data = await getData()
+  return [...data.tags]
 }
 
 export async function addTag(tag: Tag): Promise<void> {
-  const db = await getDB()
-  await db.put('tags', tag)
+  await updateData((data) => {
+    data.tags = data.tags.filter((item) => item.id !== tag.id)
+    data.tags.push(tag)
+  })
 }
 
 export async function updateTag(tag: Tag): Promise<void> {
-  const db = await getDB()
-  await db.put('tags', tag)
+  await addTag(tag)
 }
 
 export async function deleteTag(id: string): Promise<void> {
-  const db = await getDB()
-  await db.delete('tags', id)
+  await updateData((data) => {
+    data.tags = data.tags.filter((tag) => tag.id !== id)
+    data.todoTags = data.todoTags.filter((link) => link.tagId !== id)
+  })
 }
 
 export async function getTodoTags(todoId: string): Promise<string[]> {
-  const db = await getDB()
-  const records = await db.getAll('todo_tags') as TodoTag[]
-  return records.filter(r => r.todoId === todoId).map(r => r.tagId)
+  const data = await getData()
+  return data.todoTags.filter((record) => record.todoId === todoId).map((record) => record.tagId)
 }
 
 export async function addTodoTag(todoId: string, tagId: string): Promise<void> {
-  const db = await getDB()
-  await db.put('todo_tags', { todoId, tagId })
+  await updateData((data) => {
+    const exists = data.todoTags.some((record) => record.todoId === todoId && record.tagId === tagId)
+    if (!exists) {
+      data.todoTags.push({ todoId, tagId })
+    }
+  })
 }
 
 export async function removeTodoTag(todoId: string, tagId: string): Promise<void> {
-  const db = await getDB()
-  const keys = await db.getAllKeys('todo_tags')
-  for (const key of keys) {
-    const record = await db.get('todo_tags', key) as TodoTag | undefined
-    if (record && record.todoId === todoId && record.tagId === tagId) {
-      await db.delete('todo_tags', key)
-      return
-    }
-  }
+  await updateData((data) => {
+    data.todoTags = data.todoTags.filter((record) => record.todoId !== todoId || record.tagId !== tagId)
+  })
 }
 
 export async function removeAllTodoTags(todoId: string): Promise<void> {
-  const db = await getDB()
-  const keys = await db.getAllKeys('todo_tags')
-  for (const key of keys) {
-    const record = await db.get('todo_tags', key) as TodoTag | undefined
-    if (record && record.todoId === todoId) {
-      await db.delete('todo_tags', key)
-    }
-  }
+  await updateData((data) => {
+    data.todoTags = data.todoTags.filter((record) => record.todoId !== todoId)
+  })
 }
 
 export async function getTagsByIds(ids: string[]): Promise<Tag[]> {
-  const db = await getDB()
-  const allTags = await db.getAll('tags') as Tag[]
-  return allTags.filter(t => ids.includes(t.id))
+  const data = await getData()
+  return data.tags.filter((tag) => ids.includes(tag.id))
 }
 
 export async function getAllTodos(): Promise<Todo[]> {
-  const db = await getDB()
-  return db.getAll(STORE_NAME)
+  const data = await getData()
+  return [...data.todos]
 }
 
 export async function addTodo(todo: Todo): Promise<void> {
-  const db = await getDB()
-  await db.put(STORE_NAME, todo)
+  await updateData((data) => {
+    data.todos = data.todos.filter((item) => item.id !== todo.id)
+    data.todos.push(todo)
+  })
 }
 
 export async function updateTodo(todo: Todo): Promise<void> {
-  const db = await getDB()
-  await db.put(STORE_NAME, todo)
+  await addTodo(todo)
 }
 
 export async function deleteTodo(id: string): Promise<void> {
-  const db = await getDB()
-  await db.delete(STORE_NAME, id)
+  await updateData((data) => {
+    data.todos = data.todos.filter((todo) => todo.id !== id)
+    data.todoTags = data.todoTags.filter((link) => link.todoId !== id)
+  })
 }
 
-export async function getTodoStats(): Promise<TodoStats> {
+export async function getUiFilters(): Promise<Record<string, string>> {
+  const data = await getData()
+  return { ...data.ui.filters }
+}
+
+export async function setUiFilters(filters: Record<string, string>): Promise<void> {
+  await updateData((data) => {
+    data.ui.filters = { ...filters }
+  })
+}
+
+export async function getTodoStats() {
   const todos = await getAllTodos()
-  const startOfDayMs = new Date().setHours(0, 0, 0, 0)
-  const startOfWeekMs = startOfDayMs - new Date(startOfDayMs).getDay() * 86400000
-
-  const completed = todos.filter((t) => t.completed)
-  const weeklyCompleted = completed.filter((t) => (t.completedAt ?? 0) >= startOfWeekMs)
-  const now = Date.now()
-  const highPriority = todos.filter((t) => t.priority === 'high').length
-  const mediumPriority = todos.filter((t) => t.priority === 'medium').length
-  const lowPriority = todos.filter((t) => t.priority === 'low').length
-  const overdueCount = todos.filter((t) => !t.completed && t.dueDate && t.dueDate < now).length
-
-  return {
-    total: todos.length,
-    completed: completed.length,
-    completionRate: todos.length > 0 ? Math.round((completed.length / todos.length) * 100) : 0,
-    weeklyCompleted: weeklyCompleted.length,
-    priorityStats: { high: highPriority, medium: mediumPriority, low: lowPriority },
-    overdueCount,
-  }
+  return calculateTodoStats(todos)
 }
