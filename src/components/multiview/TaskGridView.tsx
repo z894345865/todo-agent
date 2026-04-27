@@ -89,10 +89,11 @@ export function TaskGridView({ view }: TaskGridViewProps) {
         return
       }
 
+      const latestView = useTaskStore.getState().views.find((item) => item.id === view.id) ?? view
       void updateView({
-        ...view,
+        ...latestView,
         columnWidths: {
-          ...view.columnWidths,
+          ...latestView.columnWidths,
           [column.id]: newSize,
         },
       }).catch(console.error)
@@ -113,7 +114,7 @@ export function TaskGridView({ view }: TaskGridViewProps) {
       getCellsForSelection
       onCellClicked={handleCellClicked}
       onCellEdited={handleCellEdited}
-      onColumnResize={handleColumnResize}
+      onColumnResizeEnd={handleColumnResize}
       onRowAppended={handleRowAppended}
       rowMarkers="number"
       smoothScrollX

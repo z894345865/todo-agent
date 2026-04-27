@@ -6,6 +6,7 @@ type TaskUpdates = Partial<Omit<Task, 'id' | 'createdAt'>>
 
 const STATUS_VALUES: TaskStatus[] = ['todo', 'doing', 'done', 'blocked']
 const PRIORITY_VALUES: TaskPriority[] = ['urgent', 'high', 'medium', 'low']
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 export function parseItem(item: Item): { columnIndex: number; rowIndex: number } {
   const [columnIndex, rowIndex] = item
@@ -43,7 +44,7 @@ export function cellToTaskUpdate(cell: EditableGridCell, field: FieldDefinition,
     case 'tagIds':
       return { tagIds: parseTagIds(value, tags) }
     case 'dueDate':
-      return { dueDate: normalizeOptionalString(value) }
+      return parseOptionalDateUpdate(value)
     case 'description':
       return { description: normalizeOptionalString(value) }
     case 'completedAt':
@@ -99,7 +100,19 @@ function parseTagIds(value: string, tags: Tag[]): string[] {
     .map((item) => item.trim())
     .filter(Boolean)
 
-  return values.map((item) => tags.find((tag) => tag.id === item || tag.name === item)?.id ?? item)
+  return values.flatMap((item) => {
+    const tag = tags.find((candidate) => candidate.id === item || candidate.name === item)
+    return tag ? [tag.id] : []
+  })
+}
+
+function parseOptionalDateUpdate(value: string): TaskUpdates {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return { dueDate: undefined }
+  }
+
+  return isDateOnly(trimmed) ? { dueDate: trimmed } : {}
 }
 
 function normalizeOptionalString(value: string): string | undefined {
@@ -110,6 +123,15 @@ function normalizeOptionalString(value: string): string | undefined {
 function formatDateTime(value: string): string {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
+}
+
+function isDateOnly(value: string): boolean {
+  if (!DATE_ONLY_PATTERN.test(value)) {
+    return false
+  }
+
+  const date = new Date(`${value}T00:00:00.000Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
 }
 
 function isTaskStatus(value: string): value is TaskStatus {
