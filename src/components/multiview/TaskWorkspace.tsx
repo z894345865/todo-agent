@@ -11,7 +11,6 @@ const PLACEHOLDER_BY_TYPE = {
 export function TaskWorkspace() {
   const views = useTaskStore((state) => state.views)
   const activeViewId = useTaskStore((state) => state.activeViewId)
-  const loading = useTaskStore((state) => state.loading)
   const error = useTaskStore((state) => state.error)
   const activeView = views.find((view) => view.id === activeViewId) ?? views[0]
   const placeholder = activeView ? PLACEHOLDER_BY_TYPE[activeView.type] : '表格视图加载中'
@@ -22,7 +21,7 @@ export function TaskWorkspace() {
         <TaskToolbar />
         {error && <div className="task-workspace__error">{error}</div>}
         <div className="task-workspace__view-shell">
-          <div className="task-workspace__placeholder">{loading ? '任务加载中' : placeholder}</div>
+          <div className="task-workspace__placeholder">{placeholder}</div>
         </div>
       </section>
       <TaskDetailPanel />
