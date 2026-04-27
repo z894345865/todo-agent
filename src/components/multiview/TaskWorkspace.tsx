@@ -1,4 +1,5 @@
 import { TaskDetailPanel } from './TaskDetailPanel.tsx'
+import { TaskGridView } from './TaskGridView.tsx'
 import { TaskToolbar } from './TaskToolbar.tsx'
 import { useTaskStore } from '../../tasks/store.ts'
 
@@ -21,7 +22,7 @@ export function TaskWorkspace() {
         <TaskToolbar />
         {error && <div className="task-workspace__error">{error}</div>}
         <div className="task-workspace__view-shell">
-          <div className="task-workspace__placeholder">{placeholder}</div>
+          {activeView?.type === 'grid' ? <TaskGridView view={activeView} /> : <div className="task-workspace__placeholder">{placeholder}</div>}
         </div>
       </section>
       <TaskDetailPanel />
