@@ -21,6 +21,14 @@ type TaskUpdates = Partial<Omit<Task, 'id' | 'createdAt'>>
 
 const listeners = new Set<Listener>()
 let writeQueue = Promise.resolve()
+let preparedTasksCache:
+  | {
+      tasks: Task[]
+      view: ViewDefinition | undefined
+      viewId: string | undefined
+      result: Task[]
+    }
+  | undefined
 
 function notifyExternal(): void {
   listeners.forEach((listener) => {
@@ -237,7 +245,22 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       return state.tasks
     }
 
-    return applySorts(applyFilters(state.tasks, view.filters), view.sorts)
+    if (
+      preparedTasksCache?.tasks === state.tasks &&
+      preparedTasksCache.view === view &&
+      preparedTasksCache.viewId === viewId
+    ) {
+      return preparedTasksCache.result
+    }
+
+    const result = applySorts(applyFilters(state.tasks, view.filters), view.sorts)
+    preparedTasksCache = {
+      tasks: state.tasks,
+      view,
+      viewId,
+      result,
+    }
+    return result
   },
 
   getSummary: () => getTaskSummary(get().tasks),

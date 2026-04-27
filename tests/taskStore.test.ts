@@ -77,6 +77,15 @@ test('setSelectedTask clears unknown task ids', async () => {
   assert.equal(useTaskStore.getState().selectedTaskId, undefined)
 })
 
+test('getPreparedTasks returns a stable reference while task and view state is unchanged', async () => {
+  await resetStore()
+
+  const first = useTaskStore.getState().getPreparedTasks('custom-view')
+  const second = useTaskStore.getState().getPreparedTasks('custom-view')
+
+  assert.equal(second, first)
+})
+
 test('updateView stores a cloned normalized view result', async () => {
   await resetStore()
   const view: ViewDefinition = {
