@@ -3,7 +3,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useCallback, useMemo, useState } from 'react'
 import { groupTasks } from '../../tasks/model.ts'
 import { useTaskStore } from '../../tasks/store.ts'
-import type { Task, TaskStatus, ViewDefinition } from '../../tasks/types.ts'
+import type { Task, TaskPriority, TaskStatus, ViewDefinition } from '../../tasks/types.ts'
 
 const STATUS_COLUMNS: Array<{ id: TaskStatus; label: string }> = [
   { id: 'todo', label: '待办' },
@@ -12,7 +12,14 @@ const STATUS_COLUMNS: Array<{ id: TaskStatus; label: string }> = [
   { id: 'blocked', label: '阻塞' },
 ]
 
-const PRIORITY_LABELS: Record<Task['priority'], string> = {
+const PRIORITY_COLUMNS: Array<{ id: TaskPriority; label: string }> = [
+  { id: 'urgent', label: '紧急' },
+  { id: 'high', label: '高' },
+  { id: 'medium', label: '中' },
+  { id: 'low', label: '低' },
+]
+
+const PRIORITY_LABELS: Record<TaskPriority, string> = {
   urgent: '紧急',
   high: '高',
   medium: '中',
@@ -23,40 +30,79 @@ interface TaskKanbanViewProps {
   view: ViewDefinition
 }
 
+type KanbanGroupBy = 'status' | 'priority' | 'tagIds'
+
 export function TaskKanbanView({ view }: TaskKanbanViewProps) {
   const tasks = useTaskStore((state) => state.getPreparedTasks(view.id))
+  const tags = useTaskStore((state) => state.tags)
   const updateTask = useTaskStore((state) => state.updateTask)
   const setSelectedTask = useTaskStore((state) => state.setSelectedTask)
   const [dragError, setDragError] = useState<string>()
-  const groupBy = view.groupBy ?? 'status'
+  const groupBy: KanbanGroupBy = isKanbanGroupBy(view.groupBy) ? view.groupBy : 'status'
 
   const groups = useMemo(() => groupTasks(tasks, groupBy), [groupBy, tasks])
   const columns = useMemo(() => {
     if (groupBy === 'status') {
       return STATUS_COLUMNS.map((column) => ({
         ...column,
+        groupBy,
+        groupValue: column.id,
         tasks: groups[column.id] ?? [],
       }))
     }
 
-    return Object.keys(groups).map((groupId) => ({
-      id: groupId,
-      label: groupId === 'none' ? '未分组' : groupId,
-      tasks: groups[groupId] ?? [],
+    if (groupBy === 'priority') {
+      return PRIORITY_COLUMNS.map((column) => ({
+        ...column,
+        groupBy,
+        groupValue: column.id,
+        tasks: groups[column.id] ?? [],
+      }))
+    }
+
+    const tagColumns = tags.map((tag) => ({
+      id: tag.id,
+      label: tag.name,
+      groupBy,
+      groupValue: tag.id,
+      tasks: groups[tag.id] ?? [],
     }))
-  }, [groupBy, groups])
+
+    return [
+      ...tagColumns,
+      {
+        id: 'none',
+        label: '无标签',
+        groupBy,
+        groupValue: 'none',
+        tasks: groups.none ?? [],
+      },
+    ]
+  }, [groupBy, groups, tags])
 
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
-      const taskId = event.active.id
-      const status = event.over?.data.current?.status
-      if (!taskId || !isTaskStatus(status)) {
+      const taskId = event.active.data.current?.taskId
+      if (typeof taskId !== 'string') {
+        return
+      }
+
+      const task = useTaskStore.getState().tasks.find((item) => item.id === taskId)
+      const dropData = event.over?.data.current
+      if (!task || !dropData || !isKanbanGroupBy(dropData.groupBy) || typeof dropData.groupValue !== 'string') {
         return
       }
 
       setDragError(undefined)
       try {
-        await updateTask(String(taskId), { status })
+        if (dropData.groupBy === 'status' && isTaskStatus(dropData.groupValue)) {
+          await updateTask(taskId, { status: dropData.groupValue })
+        } else if (dropData.groupBy === 'priority' && isTaskPriority(dropData.groupValue)) {
+          await updateTask(taskId, { priority: dropData.groupValue })
+        } else if (dropData.groupBy === 'tagIds') {
+          const nextTagIds = dropData.groupValue === 'none' ? [] : addUnique(task.tagIds, dropData.groupValue)
+          await updateTask(taskId, { tagIds: nextTagIds })
+        }
       } catch (error) {
         console.error(error)
         setDragError('移动任务失败，请重试。')
@@ -79,7 +125,8 @@ export function TaskKanbanView({ view }: TaskKanbanViewProps) {
               key={column.id}
               id={column.id}
               label={column.label}
-              status={isTaskStatus(column.id) ? column.id : undefined}
+              groupBy={column.groupBy}
+              groupValue={column.groupValue}
               tasks={column.tasks}
               onSelectTask={setSelectedTask}
             />
@@ -93,15 +140,16 @@ export function TaskKanbanView({ view }: TaskKanbanViewProps) {
 interface KanbanColumnProps {
   id: string
   label: string
-  status?: TaskStatus
+  groupBy: KanbanGroupBy
+  groupValue: string
   tasks: Task[]
   onSelectTask: (taskId: string) => Promise<void>
 }
 
-function KanbanColumn({ id, label, status, tasks, onSelectTask }: KanbanColumnProps) {
+function KanbanColumn({ id, label, groupBy, groupValue, tasks, onSelectTask }: KanbanColumnProps) {
   const { isOver, setNodeRef } = useDroppable({
     id: `kanban-column-${id}`,
-    data: status ? { status } : {},
+    data: { groupBy, groupValue },
   })
 
   return (
@@ -112,7 +160,7 @@ function KanbanColumn({ id, label, status, tasks, onSelectTask }: KanbanColumnPr
       </header>
       <div className="task-kanban-column__cards">
         {tasks.map((task) => (
-          <KanbanTaskCard key={task.id} task={task} onSelectTask={onSelectTask} />
+          <KanbanTaskCard key={`${id}-${task.id}`} dragId={`${id}-${task.id}`} task={task} onSelectTask={onSelectTask} />
         ))}
       </div>
     </section>
@@ -120,13 +168,15 @@ function KanbanColumn({ id, label, status, tasks, onSelectTask }: KanbanColumnPr
 }
 
 interface KanbanTaskCardProps {
+  dragId: string
   task: Task
   onSelectTask: (taskId: string) => Promise<void>
 }
 
-function KanbanTaskCard({ task, onSelectTask }: KanbanTaskCardProps) {
+function KanbanTaskCard({ dragId, task, onSelectTask }: KanbanTaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: task.id,
+    id: dragId,
+    data: { taskId: task.id },
   })
   const style = transform
     ? {
@@ -153,6 +203,18 @@ function KanbanTaskCard({ task, onSelectTask }: KanbanTaskCardProps) {
   )
 }
 
+function isKanbanGroupBy(value: unknown): value is KanbanGroupBy {
+  return value === 'status' || value === 'priority' || value === 'tagIds'
+}
+
 function isTaskStatus(value: unknown): value is TaskStatus {
   return typeof value === 'string' && STATUS_COLUMNS.some((column) => column.id === value)
+}
+
+function isTaskPriority(value: unknown): value is TaskPriority {
+  return typeof value === 'string' && PRIORITY_COLUMNS.some((column) => column.id === value)
+}
+
+function addUnique(values: string[], value: string): string[] {
+  return values.includes(value) ? values : [...values, value]
 }

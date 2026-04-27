@@ -12,6 +12,7 @@ interface TaskCalendarViewProps {
 export function TaskCalendarView({ view }: TaskCalendarViewProps) {
   const tasks = useTaskStore((state) => state.getPreparedTasks(view.id))
   const setSelectedTask = useTaskStore((state) => state.setSelectedTask)
+  const updateTask = useTaskStore((state) => state.updateTask)
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
 
   const monthKey = toMonthKey(currentMonth)
@@ -73,7 +74,14 @@ export function TaskCalendarView({ view }: TaskCalendarViewProps) {
         </header>
         <div className="task-calendar-unscheduled__list">
           {unscheduledTasks.map((task) => (
-            <CalendarTaskButton key={task.id} task={task} onSelectTask={setSelectedTask} />
+            <div className="task-calendar-unscheduled__item" key={task.id}>
+              <CalendarTaskButton task={task} onSelectTask={setSelectedTask} />
+              <input
+                aria-label={`设置 ${task.title} 的截止日期`}
+                type="date"
+                onChange={(event) => void updateTask(task.id, { dueDate: event.target.value || undefined }).catch(console.error)}
+              />
+            </div>
           ))}
         </div>
       </section>
