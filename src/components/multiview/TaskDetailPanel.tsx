@@ -37,7 +37,7 @@ export function TaskDetailPanel() {
         <button
           aria-label="关闭任务详情"
           className="task-detail-panel__close"
-          onClick={() => void setSelectedTask(undefined)}
+          onClick={() => void setSelectedTask(undefined).catch(console.error)}
           type="button"
         >
           ×
@@ -50,7 +50,7 @@ export function TaskDetailPanel() {
           onChange={(event) => {
             const title = event.target.value
             if (title.trim()) {
-              void updateTask(task.id, { title })
+              void updateTask(task.id, { title }).catch(console.error)
             }
           }}
           type="text"
@@ -61,7 +61,10 @@ export function TaskDetailPanel() {
       <div className="task-detail-panel__row">
         <label className="task-field">
           <span>状态</span>
-          <select onChange={(event) => void updateTask(task.id, { status: event.target.value as TaskStatus })} value={task.status}>
+          <select
+            onChange={(event) => void updateTask(task.id, { status: event.target.value as TaskStatus }).catch(console.error)}
+            value={task.status}
+          >
             {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -72,7 +75,10 @@ export function TaskDetailPanel() {
 
         <label className="task-field">
           <span>优先级</span>
-          <select onChange={(event) => void updateTask(task.id, { priority: event.target.value as TaskPriority })} value={task.priority}>
+          <select
+            onChange={(event) => void updateTask(task.id, { priority: event.target.value as TaskPriority }).catch(console.error)}
+            value={task.priority}
+          >
             {PRIORITY_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -85,7 +91,7 @@ export function TaskDetailPanel() {
       <label className="task-field">
         <span>截止日期</span>
         <input
-          onChange={(event) => void updateTask(task.id, { dueDate: event.target.value || undefined })}
+          onChange={(event) => void updateTask(task.id, { dueDate: event.target.value || undefined }).catch(console.error)}
           type="date"
           value={task.dueDate ?? ''}
         />
@@ -94,7 +100,7 @@ export function TaskDetailPanel() {
       <label className="task-field">
         <span>描述</span>
         <textarea
-          onChange={(event) => void updateTask(task.id, { description: event.target.value || undefined })}
+          onChange={(event) => void updateTask(task.id, { description: event.target.value || undefined }).catch(console.error)}
           rows={5}
           value={task.description ?? ''}
         />
