@@ -20,9 +20,39 @@ type TaskInput = Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>> & {
 type TaskUpdates = Partial<Omit<Task, 'id' | 'createdAt'>>
 
 const listeners = new Set<Listener>()
+let writeQueue = Promise.resolve()
 
 function notifyExternal(): void {
-  listeners.forEach((listener) => listener())
+  listeners.forEach((listener) => {
+    try {
+      listener()
+    } catch {
+      // Listener failures are isolated so successful store mutations still resolve.
+    }
+  })
+}
+
+function serializeWrite<T>(operation: () => Promise<T>): Promise<T> {
+  const result = writeQueue.catch(() => undefined).then(operation)
+  writeQueue = result.then(
+    () => undefined,
+    () => undefined
+  )
+  return result
+}
+
+function cloneView(view: ViewDefinition): ViewDefinition {
+  return {
+    ...view,
+    visibleFieldIds: [...view.visibleFieldIds],
+    filters: view.filters.map((filter) => ({ ...filter })),
+    sorts: view.sorts.map((sort) => ({ ...sort })),
+    ...(view.columnWidths ? { columnWidths: { ...view.columnWidths } } : {}),
+  }
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 export interface TaskStore {
@@ -76,88 +106,129 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     }
   },
 
-  createTask: async (input) => {
-    const task = createTaskModel(input)
-    await db.addTaskRecord(task)
-    set((state) => ({
-      tasks: [...state.tasks.filter((item) => item.id !== task.id), task],
-      error: null,
-    }))
-    notifyExternal()
-    return task
-  },
+  createTask: (input) =>
+    serializeWrite(async () => {
+      const task = createTaskModel(input)
+      await db.addTaskRecord(task)
+      const data = await db.getTaskData()
+      const storedTask = data.tasks.find((item) => item.id === task.id) ?? task
+      set({
+        tasks: data.tasks,
+        selectedTaskId: data.ui.selectedTaskId,
+        error: null,
+      })
+      notifyExternal()
+      return storedTask
+    }),
 
-  updateTask: async (id, updates) => {
-    const task = get().tasks.find((item) => item.id === id)
-    if (!task) {
-      return undefined
-    }
+  updateTask: (id, updates) =>
+    serializeWrite(async () => {
+      const latestData = await db.getTaskData()
+      const task = latestData.tasks.find((item) => item.id === id)
+      if (!task) {
+        return undefined
+      }
 
-    const updated = updateTaskModel(task, updates)
-    await db.updateTaskRecord(updated)
-    set((state) => ({
-      tasks: state.tasks.map((item) => (item.id === id ? updated : item)),
-      error: null,
-    }))
-    notifyExternal()
-    return updated
-  },
+      const updated = updateTaskModel(task, updates)
+      await db.updateTaskRecord(updated)
+      const data = await db.getTaskData()
+      const storedTask = data.tasks.find((item) => item.id === id) ?? updated
+      set({
+        tasks: data.tasks,
+        selectedTaskId: data.ui.selectedTaskId,
+        error: null,
+      })
+      notifyExternal()
+      return storedTask
+    }),
 
-  deleteTask: async (id) => {
-    await db.deleteTaskRecord(id)
-    set((state) => ({
-      tasks: state.tasks.filter((task) => task.id !== id),
-      selectedTaskId: state.selectedTaskId === id ? undefined : state.selectedTaskId,
-      error: null,
-    }))
-    notifyExternal()
-  },
+  deleteTask: (id) =>
+    serializeWrite(async () => {
+      await db.deleteTaskRecord(id)
+      const data = await db.getTaskData()
+      set({
+        tasks: data.tasks,
+        selectedTaskId: data.ui.selectedTaskId,
+        error: null,
+      })
+      notifyExternal()
+    }),
 
   completeTask: (id) => get().updateTask(id, { status: 'done' }),
 
-  createTag: async (name) => {
-    const normalizedName = name.trim()
-    const existingTag = get().tags.find((tag) => tag.name.toLocaleLowerCase() === normalizedName.toLocaleLowerCase())
-    if (existingTag) {
-      return existingTag
-    }
+  createTag: (name) =>
+    serializeWrite(async () => {
+      try {
+        const normalizedName = name.trim()
+        if (!normalizedName) {
+          throw new Error('tag name is required')
+        }
 
-    const tag: Tag = {
-      id: crypto.randomUUID(),
-      name: normalizedName,
-      color: TAG_COLORS[get().tags.length % TAG_COLORS.length],
-    }
+        const data = await db.getTaskData()
+        const existingTag = data.tags.find((tag) => tag.name.toLocaleLowerCase() === normalizedName.toLocaleLowerCase())
+        if (existingTag) {
+          set({ tags: data.tags, error: null })
+          return existingTag
+        }
 
-    await db.addTagRecord(tag)
-    set((state) => ({
-      tags: [...state.tags.filter((item) => item.id !== tag.id), tag],
-      error: null,
-    }))
-    notifyExternal()
-    return tag
-  },
+        const tag: Tag = {
+          id: crypto.randomUUID(),
+          name: normalizedName,
+          color: TAG_COLORS[data.tags.length % TAG_COLORS.length],
+        }
 
-  updateView: async (view) => {
-    await db.updateViewRecord(view)
-    set((state) => ({
-      views: [...state.views.filter((item) => item.id !== view.id), view],
-      error: null,
-    }))
-    notifyExternal()
-    return view
-  },
+        await db.addTagRecord(tag)
+        const nextData = await db.getTaskData()
+        const storedTag = nextData.tags.find((item) => item.id === tag.id) ?? tag
+        set({
+          tags: nextData.tags,
+          error: null,
+        })
+        notifyExternal()
+        return storedTag
+      } catch (error) {
+        set({ error: getErrorMessage(error) })
+        throw error
+      }
+    }),
 
-  setActiveView: async (viewId) => {
-    await db.setActiveViewId(viewId)
-    set({ activeViewId: viewId, error: null })
-    notifyExternal()
-  },
+  updateView: (view) =>
+    serializeWrite(async () => {
+      await db.updateViewRecord(cloneView(view))
+      const data = await db.getTaskData()
+      const storedView = data.views.find((item) => item.id === view.id)
+      if (!storedView) {
+        throw new Error('view was not saved')
+      }
 
-  setSelectedTask: async (taskId) => {
-    await db.setSelectedTaskId(taskId)
-    set({ selectedTaskId: taskId, error: null })
-    notifyExternal()
-  },
+      set({
+        views: data.views,
+        activeViewId: data.ui.activeViewId,
+        error: null,
+      })
+      notifyExternal()
+      return storedView
+    }),
+
+  setActiveView: (viewId) =>
+    serializeWrite(async () => {
+      const data = await db.getTaskData()
+      const normalizedViewId = viewId.trim() === '' || !data.views.some((view) => view.id === viewId) ? 'grid-default' : viewId
+      await db.setActiveViewId(normalizedViewId)
+      const nextData = await db.getTaskData()
+      set({ activeViewId: nextData.ui.activeViewId, error: null })
+      notifyExternal()
+    }),
+
+  setSelectedTask: (taskId) =>
+    serializeWrite(async () => {
+      const data = await db.getTaskData()
+      const normalizedTaskId = taskId && data.tasks.some((task) => task.id === taskId) ? taskId : undefined
+      await db.setSelectedTaskId(normalizedTaskId)
+      const nextData = await db.getTaskData()
+      set({ selectedTaskId: nextData.ui.selectedTaskId, error: null })
+      notifyExternal()
+    }),
 
   getPreparedTasks: (viewId) => {
     const state = get()
