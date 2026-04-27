@@ -259,7 +259,11 @@ function resolveDateValue(value: unknown, today: Date | string): string | undefi
     return undefined
   }
 
-  return toDateOnly(value)
+  try {
+    return toDateOnly(value)
+  } catch {
+    return undefined
+  }
 }
 
 function getRange(value: unknown): [unknown, unknown] {

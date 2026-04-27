@@ -73,6 +73,41 @@ test('applyFilters between excludes tasks with empty dueDate', () => {
   assert.deepEqual(filtered.map((task) => task.title), ['In range'])
 })
 
+test('applyFilters before excludes tasks with invalid runtime dueDate', () => {
+  const tasks: Task[] = [
+    { ...createTask({ title: 'Invalid date' }, '2026-04-27T12:00:00.000Z'), dueDate: 'not-a-date' },
+    createTask({ title: 'Valid date', dueDate: '2026-04-26' }, '2026-04-27T12:00:00.000Z'),
+  ]
+
+  const filtered = applyFilters(tasks, [{ fieldId: 'dueDate', operator: 'before', value: '2026-04-27' }])
+
+  assert.deepEqual(filtered.map((task) => task.title), ['Valid date'])
+})
+
+test('applyFilters after excludes tasks with invalid runtime dueDate', () => {
+  const tasks: Task[] = [
+    { ...createTask({ title: 'Invalid date' }, '2026-04-27T12:00:00.000Z'), dueDate: 'not-a-date' },
+    createTask({ title: 'Valid date', dueDate: '2026-04-28' }, '2026-04-27T12:00:00.000Z'),
+  ]
+
+  const filtered = applyFilters(tasks, [{ fieldId: 'dueDate', operator: 'after', value: '2026-04-27' }])
+
+  assert.deepEqual(filtered.map((task) => task.title), ['Valid date'])
+})
+
+test('applyFilters between excludes tasks with invalid runtime dueDate', () => {
+  const tasks: Task[] = [
+    { ...createTask({ title: 'Invalid date' }, '2026-04-27T12:00:00.000Z'), dueDate: 'not-a-date' },
+    createTask({ title: 'Valid date', dueDate: '2026-04-28' }, '2026-04-27T12:00:00.000Z'),
+  ]
+
+  const filtered = applyFilters(tasks, [
+    { fieldId: 'dueDate', operator: 'between', value: ['2026-04-27', '2026-04-30'] },
+  ])
+
+  assert.deepEqual(filtered.map((task) => task.title), ['Valid date'])
+})
+
 test('getTaskSummary counts total, active, completed, overdue, and dueToday', () => {
   const tasks: Task[] = [
     createTask({ title: 'Late', status: 'todo', dueDate: '2026-04-26' }, '2026-04-27T12:00:00.000Z'),
