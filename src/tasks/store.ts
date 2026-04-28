@@ -25,6 +25,7 @@ let writeQueue = Promise.resolve()
 let preparedTasksCache:
   | {
       tasks: Task[]
+      tags: Tag[]
       view: ViewDefinition | undefined
       viewId: string | undefined
       result: Task[]
@@ -58,6 +59,24 @@ function cloneView(view: ViewDefinition): ViewDefinition {
     sorts: view.sorts.map((sort) => ({ ...sort })),
     ...(view.columnWidths ? { columnWidths: { ...view.columnWidths } } : {}),
   }
+}
+
+function applySearch(tasks: Task[], query: string | undefined, tags: Tag[]): Task[] {
+  const normalizedQuery = query?.trim().toLocaleLowerCase()
+  if (!normalizedQuery) {
+    return tasks
+  }
+
+  const tagNamesById = new Map(tags.map((tag) => [tag.id, tag.name]))
+
+  return tasks.filter((task) => {
+    const tagNames = task.tagIds.map((tagId) => tagNamesById.get(tagId)).filter(Boolean)
+    return [task.title, task.description, task.status, task.priority, task.dueDate, ...tagNames]
+      .filter(Boolean)
+      .join(' ')
+      .toLocaleLowerCase()
+      .includes(normalizedQuery)
+  })
 }
 
 function normalizeViewUpdate(state: TaskStore, view: ViewDefinition): ViewDefinition {
@@ -277,15 +296,17 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
     if (
       preparedTasksCache?.tasks === state.tasks &&
+      preparedTasksCache.tags === state.tags &&
       preparedTasksCache.view === view &&
       preparedTasksCache.viewId === viewId
     ) {
       return preparedTasksCache.result
     }
 
-    const result = applySorts(applyFilters(state.tasks, view.filters), view.sorts)
+    const result = applySorts(applySearch(applyFilters(state.tasks, view.filters), view.searchQuery, state.tags), view.sorts)
     preparedTasksCache = {
       tasks: state.tasks,
+      tags: state.tags,
       view,
       viewId,
       result,

@@ -55,6 +55,7 @@ export interface ViewDefinition {
   visibleFieldIds: string[]
   filters: FilterRule[]
   sorts: SortRule[]
+  searchQuery?: string
   groupBy?: string
   columnWidths?: Record<string, number>
 }

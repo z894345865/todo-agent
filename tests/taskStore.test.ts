@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { __resetTaskDataForTests } from '../src/tasks/db.ts'
 import { DEFAULT_VIEWS } from '../src/tasks/defaults.ts'
 import { useTaskStore } from '../src/tasks/store.ts'
-import type { Task, ViewDefinition } from '../src/tasks/types.ts'
+import type { Tag, Task, ViewDefinition } from '../src/tasks/types.ts'
 
 const baseTask: Task = {
   id: 'task-1',
@@ -33,6 +33,15 @@ type Deferred<T> = {
   reject: (error: unknown) => void
 }
 
+type ResetStoreData = {
+  tasks: Task[]
+  tags?: Tag[]
+  views: ViewDefinition[]
+  ui: {
+    activeViewId: string
+  }
+}
+
 function createDeferred<T>(): Deferred<T> {
   let resolve!: (value: T) => void
   let reject!: (error: unknown) => void
@@ -48,11 +57,11 @@ async function flushMicrotasks(): Promise<void> {
   await Promise.resolve()
 }
 
-async function resetStore(data = { tasks: [baseTask], views: [customView], ui: { activeViewId: 'custom-view' } }) {
+async function resetStore(data: ResetStoreData = { tasks: [baseTask], views: [customView], ui: { activeViewId: 'custom-view' } }) {
   await __resetTaskDataForTests({
     version: 1,
     tasks: data.tasks,
-    tags: [],
+    tags: data.tags ?? [],
     fields: [],
     views: data.views,
     ui: data.ui,
@@ -153,6 +162,68 @@ test('getPreparedTasks returns a stable reference while task and view state is u
   const second = useTaskStore.getState().getPreparedTasks('custom-view')
 
   assert.equal(second, first)
+})
+
+test('getPreparedTasks filters by view search query and keeps cache stable', async () => {
+  await resetStore({
+    tasks: [
+      baseTask,
+      { ...baseTask, id: 'task-2', title: 'Ship search feature', description: 'needle' },
+    ],
+    views: [{ ...customView, searchQuery: 'needle' }],
+    ui: { activeViewId: 'custom-view' },
+  })
+
+  const first = useTaskStore.getState().getPreparedTasks('custom-view')
+  const second = useTaskStore.getState().getPreparedTasks('custom-view')
+
+  assert.deepEqual(first.map((task) => task.id), ['task-2'])
+  assert.equal(second, first)
+})
+
+test('getPreparedTasks filters by tag name search query', async () => {
+  await resetStore({
+    tasks: [
+      baseTask,
+      { ...baseTask, id: 'task-2', title: 'Tagged task', tagIds: ['tag-ship'] },
+    ],
+    tags: [{ id: 'tag-ship', name: 'Release', color: '#2563eb' }],
+    views: [{ ...customView, searchQuery: 'release' }],
+    ui: { activeViewId: 'custom-view' },
+  })
+
+  const tasks = useTaskStore.getState().getPreparedTasks('custom-view')
+
+  assert.deepEqual(tasks.map((task) => task.id), ['task-2'])
+})
+
+test('clearing view search query restores prepared tasks', async () => {
+  await resetStore({
+    tasks: [
+      baseTask,
+      { ...baseTask, id: 'task-2', title: 'Ship search feature', description: 'needle' },
+    ],
+    views: [{ ...customView, searchQuery: 'needle' }],
+    ui: { activeViewId: 'custom-view' },
+  })
+
+  assert.deepEqual(
+    useTaskStore
+      .getState()
+      .getPreparedTasks('custom-view')
+      .map((task) => task.id),
+    ['task-2']
+  )
+
+  await useTaskStore.getState().updateView({ ...customView, searchQuery: '' })
+
+  assert.deepEqual(
+    useTaskStore
+      .getState()
+      .getPreparedTasks('custom-view')
+      .map((task) => task.id),
+    ['task-1', 'task-2']
+  )
 })
 
 test('updateView stores a cloned normalized view result', async () => {

@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useTaskStore } from '../../tasks/store.ts'
 import type { ViewDefinition, ViewType } from '../../tasks/types.ts'
 
@@ -18,7 +17,8 @@ const VIEW_TYPE_LABELS: Record<ViewType, string> = {
 
 export function TaskCommandBar({ view, onOpenFields, onOpenFilters, onOpenGroup, onOpenSort }: TaskCommandBarProps) {
   const createTask = useTaskStore((state) => state.createTask)
-  const [query, setQuery] = useState('')
+  const updateView = useTaskStore((state) => state.updateView)
+  const query = view.searchQuery ?? ''
 
   return (
     <div className="task-command-bar">
@@ -28,7 +28,12 @@ export function TaskCommandBar({ view, onOpenFields, onOpenFilters, onOpenGroup,
       </div>
       <label className="task-command-bar__search">
         <span aria-hidden="true">Search</span>
-        <input aria-label="搜索记录" placeholder="搜索记录..." value={query} onChange={(event) => setQuery(event.target.value)} />
+        <input
+          aria-label="搜索记录"
+          placeholder="搜索记录..."
+          value={query}
+          onChange={(event) => void updateView({ ...view, searchQuery: event.target.value }).catch(console.error)}
+        />
       </label>
       <div className="task-command-bar__actions" aria-label={`${view.name} 操作`}>
         <button type="button" onClick={onOpenFields}>
