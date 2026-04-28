@@ -36,6 +36,21 @@ test('addFilterRule replaces field/operator-compatible rule and keeps other rule
   assert.deepEqual(view.filters, [])
 })
 
+test('addFilterRule clones surviving rules and nested rule values', () => {
+  const nestedValue = { range: { from: '2026-04-01', to: '2026-04-30' } }
+  const view = {
+    ...gridView(),
+    filters: [{ fieldId: 'dueDate', operator: 'between', value: nestedValue }],
+  }
+  const next = addFilterRule(view, { fieldId: 'status', operator: 'is', value: ['todo', 'doing'] })
+
+  assert.deepEqual(next.filters[0], view.filters[0])
+  assert.notEqual(next.filters[0], view.filters[0])
+  assert.notEqual(next.filters[0].value, view.filters[0].value)
+  assert.notEqual((next.filters[0].value as typeof nestedValue).range, nestedValue.range)
+  assert.notEqual(next.filters[1].value, view.filters[0].value)
+})
+
 test('clearFilterRule removes all rules for the requested field', () => {
   const view = {
     ...gridView(),
@@ -80,6 +95,11 @@ test('resetColumnWidths restores widths from field defaults', () => {
 
 test('chip formatters produce readable labels', () => {
   assert.equal(formatFilterChip({ fieldId: 'status', operator: 'is', value: 'todo' }, DEFAULT_FIELDS), 'Status is todo')
+  assert.equal(formatFilterChip({ fieldId: 'status', operator: 'is', value: ['todo', 'doing'] }, DEFAULT_FIELDS), 'Status is todo, doing')
+  assert.equal(
+    formatFilterChip({ fieldId: 'dueDate', operator: 'between', value: ['2026-04-01', '2026-04-30'] }, DEFAULT_FIELDS),
+    'Due date between 2026-04-01 to 2026-04-30'
+  )
   assert.equal(formatSortChip({ fieldId: 'dueDate', direction: 'asc' }, DEFAULT_FIELDS), 'Due date ascending')
   assert.equal(formatGroupChip('priority', DEFAULT_FIELDS), 'Grouped by Priority')
 })

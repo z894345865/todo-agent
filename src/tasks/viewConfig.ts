@@ -3,9 +3,10 @@ import type { FieldDefinition, FilterRule, SortRule, ViewDefinition } from './ty
 const TITLE_FIELD_ID = 'title'
 
 export function addFilterRule(view: ViewDefinition, rule: FilterRule): ViewDefinition {
+  const next = cloneView(view)
   return {
-    ...cloneView(view),
-    filters: [...view.filters.filter((item) => !(item.fieldId === rule.fieldId && item.operator === rule.operator)), cloneFilter(rule)],
+    ...next,
+    filters: [...next.filters.filter((item) => !(item.fieldId === rule.fieldId && item.operator === rule.operator)), cloneFilter(rule)],
   }
 }
 
@@ -64,7 +65,7 @@ export function formatFilterChip(rule: FilterRule, fields: FieldDefinition[]): s
     return `${field} ${operator}`
   }
   if (Array.isArray(rule.value)) {
-    return `${field} ${operator} ${rule.value.join(' to ')}`
+    return `${field} ${operator} ${rule.value.join(rule.operator === 'between' ? ' to ' : ', ')}`
   }
   return `${field} ${operator} ${String(rule.value)}`
 }
@@ -90,8 +91,18 @@ function cloneView(view: ViewDefinition): ViewDefinition {
 function cloneFilter(rule: FilterRule): FilterRule {
   return {
     ...rule,
-    ...(Array.isArray(rule.value) ? { value: [...rule.value] } : 'value' in rule ? { value: rule.value } : {}),
+    ...('value' in rule ? { value: cloneFilterValue(rule.value) } : {}),
   }
+}
+
+function cloneFilterValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(cloneFilterValue)
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, cloneFilterValue(item)]))
+  }
+  return value
 }
 
 function fieldName(fieldId: string, fields: FieldDefinition[]): string {
