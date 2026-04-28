@@ -20,6 +20,8 @@ export function TaskCommandBar({ view, onOpenFields, onOpenFilters, onOpenGroup,
   const saveTimer = useRef<number | undefined>()
   const pendingSave = useRef<{ query: string; viewId: string } | undefined>()
   const query = view.searchQuery ?? ''
+  const canConfigureFields = view.type === 'grid'
+  const canGroupRecords = view.type === 'grid' || view.type === 'kanban'
 
   useEffect(() => {
     const viewId = view.id
@@ -69,15 +71,19 @@ export function TaskCommandBar({ view, onOpenFields, onOpenFilters, onOpenGroup,
         <input aria-label="搜索记录" placeholder="搜索记录..." value={query} onChange={(event) => saveSearchQuery(event.target.value)} />
       </label>
       <div className="task-command-bar__actions" aria-label={`${getViewLabel(view)} 操作`}>
-        <button type="button" onClick={onOpenFields}>
-          字段
-        </button>
+        {canConfigureFields && (
+          <button type="button" onClick={onOpenFields}>
+            字段
+          </button>
+        )}
         <button type="button" onClick={onOpenFilters}>
           筛选
         </button>
-        <button type="button" onClick={onOpenGroup}>
-          分组
-        </button>
+        {canGroupRecords && (
+          <button type="button" onClick={onOpenGroup}>
+            分组
+          </button>
+        )}
         <button type="button" onClick={onOpenSort}>
           排序
         </button>
