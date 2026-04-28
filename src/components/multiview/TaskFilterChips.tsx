@@ -3,12 +3,12 @@ import { useTaskStore } from '../../tasks/store.ts'
 import type { ViewDefinition } from '../../tasks/types.ts'
 
 interface TaskFilterChipsProps {
+  onUpdateView: (viewId: string, updater: (view: ViewDefinition) => ViewDefinition) => Promise<ViewDefinition>
   view: ViewDefinition
 }
 
-export function TaskFilterChips({ view }: TaskFilterChipsProps) {
+export function TaskFilterChips({ onUpdateView, view }: TaskFilterChipsProps) {
   const fields = useTaskStore((state) => state.fields)
-  const updateView = useTaskStore((state) => state.updateView)
   const groupChip = formatGroupChip(view.groupBy, fields)
   const sortChip = view.sorts[0] ? formatSortChip(view.sorts[0], fields) : undefined
   const hasChips = view.filters.length > 0 || Boolean(sortChip) || Boolean(groupChip)
@@ -24,22 +24,22 @@ export function TaskFilterChips({ view }: TaskFilterChipsProps) {
           key={`${filter.fieldId}-${filter.operator}`}
           title="清除此筛选"
           type="button"
-          onClick={() => void updateView(clearFilterRule(view, filter.fieldId)).catch(console.error)}
+          onClick={() => void onUpdateView(view.id, (latestView) => clearFilterRule(latestView, filter.fieldId, filter.operator)).catch(console.error)}
         >
           <span>筛选: {formatFilterChip(filter, fields)}</span>
-          <span aria-hidden="true">×</span>
+          <span aria-hidden="true">x</span>
         </button>
       ))}
       {sortChip && (
-        <button title="清除排序" type="button" onClick={() => void updateView(setSortRule(view, undefined)).catch(console.error)}>
+        <button title="清除排序" type="button" onClick={() => void onUpdateView(view.id, (latestView) => setSortRule(latestView, undefined)).catch(console.error)}>
           <span>排序: {sortChip}</span>
-          <span aria-hidden="true">×</span>
+          <span aria-hidden="true">x</span>
         </button>
       )}
       {groupChip && (
-        <button title="清除分组" type="button" onClick={() => void updateView(setGroupBy(view, undefined)).catch(console.error)}>
+        <button title="清除分组" type="button" onClick={() => void onUpdateView(view.id, (latestView) => setGroupBy(latestView, undefined)).catch(console.error)}>
           <span>{groupChip}</span>
-          <span aria-hidden="true">×</span>
+          <span aria-hidden="true">x</span>
         </button>
       )}
     </div>

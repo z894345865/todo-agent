@@ -6,14 +6,14 @@ import type { ViewDefinition } from '../../tasks/types.ts'
 interface TaskGroupDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onUpdateView: (viewId: string, updater: (view: ViewDefinition) => ViewDefinition) => Promise<ViewDefinition>
   view: ViewDefinition
 }
 
 const GROUP_FIELD_IDS = ['none', 'status', 'priority', 'tagIds'] as const
 
-export function TaskGroupDialog({ open, onOpenChange, view }: TaskGroupDialogProps) {
+export function TaskGroupDialog({ open, onOpenChange, onUpdateView, view }: TaskGroupDialogProps) {
   const fields = useTaskStore((state) => state.fields)
-  const updateView = useTaskStore((state) => state.updateView)
   const [fieldId, setFieldId] = useState(view.groupBy ?? 'none')
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export function TaskGroupDialog({ open, onOpenChange, view }: TaskGroupDialogPro
   }
 
   const apply = () => {
-    void updateView(setGroupBy(view, fieldId === 'none' ? undefined : fieldId))
+    void onUpdateView(view.id, (latestView) => setGroupBy(latestView, fieldId === 'none' ? undefined : fieldId))
       .then(() => onOpenChange(false))
       .catch(console.error)
   }
@@ -38,7 +38,7 @@ export function TaskGroupDialog({ open, onOpenChange, view }: TaskGroupDialogPro
         <header>
           <h2>分组</h2>
           <button aria-label="关闭" type="button" onClick={() => onOpenChange(false)}>
-            ×
+            x
           </button>
         </header>
         <label>
@@ -52,7 +52,7 @@ export function TaskGroupDialog({ open, onOpenChange, view }: TaskGroupDialogPro
           </select>
         </label>
         <footer>
-          <button type="button" onClick={() => void updateView(setGroupBy(view, undefined)).then(() => onOpenChange(false)).catch(console.error)}>
+          <button type="button" onClick={() => void onUpdateView(view.id, (latestView) => setGroupBy(latestView, undefined)).then(() => onOpenChange(false)).catch(console.error)}>
             清除
           </button>
           <button type="button" onClick={apply}>

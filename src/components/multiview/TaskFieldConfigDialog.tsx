@@ -6,12 +6,12 @@ import type { ViewDefinition } from '../../tasks/types.ts'
 interface TaskFieldConfigDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onUpdateView: (viewId: string, updater: (view: ViewDefinition) => ViewDefinition) => Promise<ViewDefinition>
   view: ViewDefinition
 }
 
-export function TaskFieldConfigDialog({ open, onOpenChange, view }: TaskFieldConfigDialogProps) {
+export function TaskFieldConfigDialog({ open, onOpenChange, onUpdateView, view }: TaskFieldConfigDialogProps) {
   const fields = useTaskStore((state) => state.fields)
-  const updateView = useTaskStore((state) => state.updateView)
   const defaultView = DEFAULT_VIEWS.find((item) => item.id === view.id) ?? DEFAULT_VIEWS.find((item) => item.type === view.type) ?? view
 
   if (!open) {
@@ -24,7 +24,7 @@ export function TaskFieldConfigDialog({ open, onOpenChange, view }: TaskFieldCon
         <header>
           <h2>字段管理</h2>
           <button aria-label="关闭" type="button" onClick={() => onOpenChange(false)}>
-            ×
+            x
           </button>
         </header>
         <div className="task-field-list">
@@ -34,15 +34,15 @@ export function TaskFieldConfigDialog({ open, onOpenChange, view }: TaskFieldCon
                 checked={view.visibleFieldIds.includes(String(field.id))}
                 disabled={field.id === 'title'}
                 type="checkbox"
-                onChange={(event) => void updateView(setVisibleField(view, String(field.id), event.target.checked)).catch(console.error)}
+                onChange={(event) => void onUpdateView(view.id, (latestView) => setVisibleField(latestView, String(field.id), event.target.checked)).catch(console.error)}
               />
               <span>{field.name}</span>
-              {field.id === 'title' && <small>必选</small>}
+              {field.id === 'title' && <small>必填</small>}
             </label>
           ))}
         </div>
         <footer>
-          <button type="button" onClick={() => void updateView(resetColumnWidths(view, defaultView)).catch(console.error)}>
+          <button type="button" onClick={() => void onUpdateView(view.id, (latestView) => resetColumnWidths(latestView, defaultView)).catch(console.error)}>
             重置列宽
           </button>
           <button type="button" onClick={() => onOpenChange(false)}>

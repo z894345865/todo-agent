@@ -6,6 +6,7 @@ import type { FieldDefinition, FieldOption, FieldType, FilterRule, ViewDefinitio
 interface TaskFilterDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onUpdateView: (viewId: string, updater: (view: ViewDefinition) => ViewDefinition) => Promise<ViewDefinition>
   view: ViewDefinition
 }
 
@@ -32,10 +33,9 @@ const OPERATORS_BY_TYPE: Record<FieldType, FilterRule['operator'][]> = {
   date: ['is', 'before', 'after', 'between', 'isEmpty', 'isNotEmpty'],
 }
 
-export function TaskFilterDialog({ open, onOpenChange, view }: TaskFilterDialogProps) {
+export function TaskFilterDialog({ open, onOpenChange, onUpdateView, view }: TaskFilterDialogProps) {
   const fields = useTaskStore((state) => state.fields)
   const tags = useTaskStore((state) => state.tags)
-  const updateView = useTaskStore((state) => state.updateView)
   const filterFields = useMemo(() => FILTER_FIELD_IDS.map((id) => fields.find((field) => field.id === id)).filter(isFieldDefinition), [fields])
   const [fieldId, setFieldId] = useState(DEFAULT_FIELD_ID)
   const selectedField = filterFields.find((field) => field.id === fieldId) ?? filterFields[0]
@@ -56,19 +56,25 @@ export function TaskFilterDialog({ open, onOpenChange, view }: TaskFilterDialogP
     setValue(formatFilterValue(current?.value, selectedField.type, valueOptions))
   }, [open, operators, selectedField, valueOptions, view.filters])
 
+  useEffect(() => {
+    if (!operators.includes(operator)) {
+      setOperator(operators[0])
+    }
+  }, [operator, operators])
+
   if (!open || !selectedField) {
     return null
   }
 
   const apply = () => {
     const rule = createFilterRule(fieldId, operator, value, selectedField.type)
-    void updateView(addFilterRule(clearFilterRule(view, fieldId), rule))
+    void onUpdateView(view.id, (latestView) => addFilterRule(clearFilterRule(latestView, fieldId, operator), rule))
       .then(() => onOpenChange(false))
       .catch(console.error)
   }
 
   const clearSelected = () => {
-    void updateView(clearFilterRule(view, fieldId))
+    void onUpdateView(view.id, (latestView) => clearFilterRule(latestView, fieldId))
       .then(() => onOpenChange(false))
       .catch(console.error)
   }
@@ -79,7 +85,7 @@ export function TaskFilterDialog({ open, onOpenChange, view }: TaskFilterDialogP
         <header>
           <h2>筛选</h2>
           <button aria-label="关闭" type="button" onClick={() => onOpenChange(false)}>
-            ×
+            x
           </button>
         </header>
         <label>

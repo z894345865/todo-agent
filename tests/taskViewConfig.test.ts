@@ -63,6 +63,18 @@ test('clearFilterRule removes all rules for the requested field', () => {
   assert.deepEqual(clearFilterRule(view, 'status').filters, [{ fieldId: 'priority', operator: 'is', value: 'high' }])
 })
 
+test('clearFilterRule can remove only the requested field and operator', () => {
+  const view = {
+    ...gridView(),
+    filters: [
+      { fieldId: 'dueDate', operator: 'after', value: '2026-04-01' },
+      { fieldId: 'dueDate', operator: 'before', value: '2026-04-30' },
+    ],
+  } satisfies ViewDefinition
+
+  assert.deepEqual(clearFilterRule(view, 'dueDate', 'after').filters, [{ fieldId: 'dueDate', operator: 'before', value: '2026-04-30' }])
+})
+
 test('setSortRule replaces sorts with one sort rule', () => {
   const sort: SortRule = { fieldId: 'dueDate', direction: 'asc' }
 

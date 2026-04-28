@@ -27,7 +27,7 @@ export function TaskCommandBar({ view, onOpenFields, onOpenFilters, onOpenGroup,
         <span>{VIEW_TYPE_LABELS[view.type]}</span>
       </div>
       <label className="task-command-bar__search">
-        <span aria-hidden="true">⌕</span>
+        <span aria-hidden="true">Search</span>
         <input aria-label="搜索记录" placeholder="搜索记录..." value={query} onChange={(event) => setQuery(event.target.value)} />
       </label>
       <div className="task-command-bar__actions" aria-label={`${view.name} 操作`}>

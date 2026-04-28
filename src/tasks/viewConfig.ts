@@ -10,10 +10,10 @@ export function addFilterRule(view: ViewDefinition, rule: FilterRule): ViewDefin
   }
 }
 
-export function clearFilterRule(view: ViewDefinition, fieldId: string): ViewDefinition {
+export function clearFilterRule(view: ViewDefinition, fieldId: string, operator?: FilterRule['operator']): ViewDefinition {
   return {
     ...cloneView(view),
-    filters: view.filters.filter((rule) => rule.fieldId !== fieldId).map(cloneFilter),
+    filters: view.filters.filter((rule) => rule.fieldId !== fieldId || (operator !== undefined && rule.operator !== operator)).map(cloneFilter),
   }
 }
 

@@ -6,12 +6,12 @@ import type { SortRule, ViewDefinition } from '../../tasks/types.ts'
 interface TaskSortDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onUpdateView: (viewId: string, updater: (view: ViewDefinition) => ViewDefinition) => Promise<ViewDefinition>
   view: ViewDefinition
 }
 
-export function TaskSortDialog({ open, onOpenChange, view }: TaskSortDialogProps) {
+export function TaskSortDialog({ open, onOpenChange, onUpdateView, view }: TaskSortDialogProps) {
   const fields = useTaskStore((state) => state.fields)
-  const updateView = useTaskStore((state) => state.updateView)
   const [fieldId, setFieldId] = useState(view.sorts[0]?.fieldId ?? 'createdAt')
   const [direction, setDirection] = useState<SortRule['direction']>(view.sorts[0]?.direction ?? 'desc')
 
@@ -32,7 +32,7 @@ export function TaskSortDialog({ open, onOpenChange, view }: TaskSortDialogProps
         <header>
           <h2>排序</h2>
           <button aria-label="关闭" type="button" onClick={() => onOpenChange(false)}>
-            ×
+            x
           </button>
         </header>
         <label>
@@ -53,10 +53,10 @@ export function TaskSortDialog({ open, onOpenChange, view }: TaskSortDialogProps
           </select>
         </label>
         <footer>
-          <button type="button" onClick={() => void updateView(setSortRule(view, undefined)).then(() => onOpenChange(false)).catch(console.error)}>
+          <button type="button" onClick={() => void onUpdateView(view.id, (latestView) => setSortRule(latestView, undefined)).then(() => onOpenChange(false)).catch(console.error)}>
             清除
           </button>
-          <button type="button" onClick={() => void updateView(setSortRule(view, { fieldId, direction })).then(() => onOpenChange(false)).catch(console.error)}>
+          <button type="button" onClick={() => void onUpdateView(view.id, (latestView) => setSortRule(latestView, { fieldId, direction })).then(() => onOpenChange(false)).catch(console.error)}>
             应用排序
           </button>
         </footer>
