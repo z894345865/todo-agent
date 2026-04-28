@@ -5,9 +5,12 @@ import { getFieldLabel } from '../../tasks/displayLabels.ts'
 import { useTaskStore } from '../../tasks/store.ts'
 import type { ViewDefinition } from '../../tasks/types.ts'
 import { cellToTaskUpdate, getTaskFieldPills, parseItem, taskFieldToGridCell, type GridPill } from './cellRenderers.tsx'
+import { createGridRows, type GridRow } from './gridGrouping.ts'
 import { isTaskOverdue } from './taskDates.ts'
 
 const DEFAULT_COLUMN_WIDTH = 160
+const DEFAULT_ROW_HEIGHT = 34
+const GROUP_ROW_HEIGHT = 38
 const PILL_HEIGHT = 22
 const PILL_GAP = 6
 const PILL_HORIZONTAL_PADDING = 10
@@ -40,34 +43,42 @@ export function TaskGridView({ view }: TaskGridViewProps) {
       })),
     [view.columnWidths, visibleFields]
   )
+  const gridRows = useMemo(() => createGridRows(tasks, view.groupBy, tags), [tags, tasks, view.groupBy])
+  const hasGroupedRows = gridRows.some((row) => row.kind === 'group')
 
   const getCellContent = useCallback(
     (item: Item): GridCell => {
       const { columnIndex, rowIndex } = parseItem(item)
-      const task = tasks[rowIndex]
+      const row = gridRows[rowIndex]
       const field = visibleFields[columnIndex]
 
-      if (!task || !field) {
+      if (!row || !field) {
         return {
           kind: GridCellKind.Loading,
           allowOverlay: false,
         }
       }
 
+      if (row.kind === 'group') {
+        return createGroupCell(row, columns.length)
+      }
+
+      const task = row.task
       return taskFieldToGridCell(task, field, tags)
     },
-    [tags, tasks, visibleFields]
+    [columns.length, gridRows, tags, visibleFields]
   )
 
   const handleCellEdited = useCallback(
     (item: Item, newValue: EditableGridCell) => {
       const { columnIndex, rowIndex } = parseItem(item)
-      const task = tasks[rowIndex]
+      const row = gridRows[rowIndex]
       const field = visibleFields[columnIndex]
-      if (!task || !field) {
+      if (!row || row.kind !== 'task' || !field) {
         return
       }
 
+      const task = row.task
       const updates = cellToTaskUpdate(newValue, field, tags)
       if (Object.keys(updates).length === 0) {
         return
@@ -75,23 +86,29 @@ export function TaskGridView({ view }: TaskGridViewProps) {
 
       void updateTask(task.id, updates).catch(console.error)
     },
-    [tags, tasks, updateTask, visibleFields]
+    [gridRows, tags, updateTask, visibleFields]
   )
 
   const handleCellClicked = useCallback(
     (item: Item) => {
       const { rowIndex } = parseItem(item)
-      const task = tasks[rowIndex]
-      if (task) {
-        void setSelectedTask(task.id).catch(console.error)
+      const row = gridRows[rowIndex]
+      if (row?.kind === 'task') {
+        void setSelectedTask(row.task.id).catch(console.error)
       }
     },
-    [setSelectedTask, tasks]
+    [gridRows, setSelectedTask]
   )
 
   const drawCell = useCallback<DrawCellCallback>(
     (args, drawContent) => {
-      const task = tasks[args.row]
+      const row = gridRows[args.row]
+      if (row?.kind === 'group') {
+        drawGroupRow(args.ctx, args.rect, row, `${args.theme.baseFontStyle} ${args.theme.fontFamily}`)
+        return
+      }
+
+      const task = row?.kind === 'task' ? row.task : undefined
       const field = visibleFields[args.col]
       const pills = task && field ? getTaskFieldPills(task, field, tags) : []
 
@@ -109,7 +126,7 @@ export function TaskGridView({ view }: TaskGridViewProps) {
       drawGridCellBase(args.ctx, args.rect, args.theme.bgCell, args.theme.borderColor, args.theme.horizontalBorderColor)
       drawPills(args.ctx, args.rect, pills, `${args.theme.baseFontStyle} ${args.theme.fontFamily}`, args.theme.cellHorizontalPadding)
     },
-    [tags, tasks, visibleFields]
+    [gridRows, tags, visibleFields]
   )
 
   const handleColumnResize = useCallback(
@@ -138,7 +155,7 @@ export function TaskGridView({ view }: TaskGridViewProps) {
     <DataEditor
       className="task-grid-view"
       columns={columns}
-      rows={tasks.length}
+      rows={gridRows.length}
       getCellContent={getCellContent}
       getCellsForSelection
       drawCell={drawCell}
@@ -146,7 +163,8 @@ export function TaskGridView({ view }: TaskGridViewProps) {
       onCellEdited={handleCellEdited}
       onColumnResizeEnd={handleColumnResize}
       onRowAppended={handleRowAppended}
-      rowMarkers="number"
+      rowHeight={(row) => (gridRows[row]?.kind === 'group' ? GROUP_ROW_HEIGHT : DEFAULT_ROW_HEIGHT)}
+      rowMarkers={hasGroupedRows ? 'none' : 'number'}
       smoothScrollX
       smoothScrollY
       trailingRowOptions={{ hint: '新任务', sticky: true }}
@@ -154,6 +172,54 @@ export function TaskGridView({ view }: TaskGridViewProps) {
       height={420}
     />
   )
+}
+
+function createGroupCell(row: Extract<GridRow, { kind: 'group' }>, columnCount: number): GridCell {
+  return {
+    kind: GridCellKind.Text,
+    data: `${row.label} (${row.count})`,
+    displayData: `${row.label} (${row.count})`,
+    allowOverlay: false,
+    readonly: true,
+    span: [0, Math.max(0, columnCount - 1)],
+    copyData: `${row.label} (${row.count})`,
+  }
+}
+
+function drawGroupRow(ctx: CanvasRenderingContext2D, rect: Rectangle, row: Extract<GridRow, { kind: 'group' }>, font: string) {
+  ctx.save()
+  ctx.fillStyle = '#f8fafc'
+  ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
+
+  ctx.strokeStyle = '#e2e8f0'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(rect.x, rect.y + rect.height - 0.5)
+  ctx.lineTo(rect.x + rect.width, rect.y + rect.height - 0.5)
+  ctx.stroke()
+
+  const x = rect.x + 14
+  const centerY = rect.y + rect.height / 2
+  const countText = `${row.count} 条`
+  ctx.font = `700 ${font}`
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = '#0f172a'
+  ctx.fillText(row.label, x, centerY + 0.5)
+
+  const labelWidth = Math.ceil(ctx.measureText(row.label).width)
+  ctx.font = `600 ${font}`
+  const countWidth = Math.ceil(ctx.measureText(countText).width) + 18
+  const badgeX = x + labelWidth + 10
+  const badgeY = centerY - 10
+  drawRoundedRect(ctx, badgeX, badgeY, countWidth, 20, 10)
+  ctx.fillStyle = '#eef2ff'
+  ctx.fill()
+  ctx.strokeStyle = '#c7d2fe'
+  ctx.stroke()
+  ctx.fillStyle = '#3730a3'
+  ctx.fillText(countText, badgeX + 9, centerY + 0.5)
+
+  ctx.restore()
 }
 
 function drawGridCellBase(ctx: CanvasRenderingContext2D, rect: Rectangle, bgCell: string, borderColor: string, horizontalBorderColor: string | undefined) {
