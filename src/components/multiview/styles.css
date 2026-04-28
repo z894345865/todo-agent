@@ -716,3 +716,234 @@
     grid-template-columns: 1fr;
   }
 }
+
+.task-toolbar {
+  display: flex;
+  min-height: unset;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #d8dee8;
+  background: #fbfcfe;
+}
+
+.task-command-bar {
+  display: grid;
+  grid-template-columns: minmax(130px, auto) minmax(180px, 320px) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.task-command-bar__view {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.task-command-bar__view strong {
+  overflow: hidden;
+  color: #20252d;
+  font-size: 15px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-command-bar__view span {
+  color: #697386;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.task-command-bar__search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  height: 32px;
+  border: 1px solid #cfd7e3;
+  border-radius: 6px;
+  background: #fff;
+  padding: 0 9px;
+  color: #697386;
+}
+
+.task-command-bar__search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #111827;
+  font: inherit;
+  font-size: 13px;
+}
+
+.task-command-bar__actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.task-command-bar__actions button,
+.task-filter-chips button,
+.task-dialog button {
+  border: 1px solid #cfd6df;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  font: inherit;
+}
+
+.task-command-bar__actions button {
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.task-command-bar__actions .task-command-bar__primary {
+  border-color: #1f6f50;
+  background: #1f6f50;
+  color: #fff;
+}
+
+.task-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.task-filter-chips button {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 8px;
+  border-color: #b7c7db;
+  background: #e7eef7;
+  color: #315c8c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.task-filter-chips button span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 16px 24px;
+  background: rgb(15 23 42 / 22%);
+}
+
+.task-dialog {
+  display: flex;
+  width: min(460px, 100%);
+  flex-direction: column;
+  gap: 14px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #fff;
+  padding: 16px;
+  box-shadow: 0 20px 45px rgb(15 23 42 / 18%);
+}
+
+.task-dialog header,
+.task-dialog footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.task-dialog h2 {
+  margin: 0;
+  color: #20252d;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.task-dialog label,
+.task-field-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.task-dialog label span {
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.task-dialog input,
+.task-dialog select {
+  min-width: 0;
+  height: 34px;
+  border: 1px solid #cfd6df;
+  border-radius: 6px;
+  background: #fff;
+  color: #111827;
+  font: inherit;
+  padding: 5px 8px;
+}
+
+.task-dialog button {
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.task-dialog footer button:last-child {
+  border-color: #1f6f50;
+  background: #1f6f50;
+  color: #fff;
+}
+
+.task-field-list {
+  max-height: min(360px, 55vh);
+  overflow-y: auto;
+}
+
+.task-field-list__item {
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.task-field-list__item span {
+  flex: 1;
+}
+
+.task-field-list__item small {
+  color: #697386;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+@media (max-width: 860px) {
+  .task-command-bar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .task-command-bar__actions {
+    justify-content: flex-start;
+  }
+}
