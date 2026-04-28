@@ -23,29 +23,43 @@ export function TaskCommandBar({ view, onOpenFields, onOpenFilters, onOpenGroup,
   const setViewSearchQuery = useTaskStore((state) => state.setViewSearchQuery)
   const updateView = useTaskStore((state) => state.updateView)
   const saveTimer = useRef<number | undefined>()
+  const pendingSave = useRef<{ query: string; viewId: string } | undefined>()
   const query = view.searchQuery ?? ''
 
-  useEffect(
-    () => () => {
-      if (saveTimer.current !== undefined) {
-        window.clearTimeout(saveTimer.current)
-      }
-    },
-    []
-  )
+  useEffect(() => {
+    const viewId = view.id
+    return () => flushSearchSave(viewId)
+  }, [view.id])
+
+  useEffect(() => () => flushSearchSave(), [])
+
+  const flushSearchSave = (viewId?: string) => {
+    if (saveTimer.current !== undefined) {
+      window.clearTimeout(saveTimer.current)
+      saveTimer.current = undefined
+    }
+
+    const pending = pendingSave.current
+    if (!pending || (viewId && pending.viewId !== viewId)) {
+      return
+    }
+    pendingSave.current = undefined
+
+    const latestView = useTaskStore.getState().views.find((item) => item.id === pending.viewId)
+    if (!latestView) {
+      return
+    }
+    void updateView({ ...latestView, searchQuery: pending.query }).catch(console.error)
+  }
 
   const saveSearchQuery = (nextQuery: string) => {
     setViewSearchQuery(view.id, nextQuery)
+    pendingSave.current = { query: nextQuery, viewId: view.id }
     if (saveTimer.current !== undefined) {
       window.clearTimeout(saveTimer.current)
     }
-
     saveTimer.current = window.setTimeout(() => {
-      const latestView = useTaskStore.getState().views.find((item) => item.id === view.id)
-      if (!latestView) {
-        return
-      }
-      void updateView({ ...latestView, searchQuery: nextQuery }).catch(console.error)
+      flushSearchSave()
     }, SEARCH_SAVE_DELAY_MS)
   }
 
