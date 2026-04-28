@@ -226,6 +226,31 @@ test('clearing view search query restores prepared tasks', async () => {
   )
 })
 
+test('setViewSearchQuery updates memory immediately without dropping other view config', async () => {
+  await resetStore({
+    tasks: [
+      baseTask,
+      { ...baseTask, id: 'task-2', title: 'Ship search feature', description: 'needle' },
+    ],
+    views: [{ ...customView, filters: [{ fieldId: 'status', operator: 'is', value: 'todo' }], sorts: [{ fieldId: 'title', direction: 'asc' }] }],
+    ui: { activeViewId: 'custom-view' },
+  })
+
+  useTaskStore.getState().setViewSearchQuery('custom-view', 'needle')
+
+  const view = useTaskStore.getState().views.find((item) => item.id === 'custom-view')!
+  assert.equal(view.searchQuery, 'needle')
+  assert.deepEqual(view.filters, [{ fieldId: 'status', operator: 'is', value: 'todo' }])
+  assert.deepEqual(view.sorts, [{ fieldId: 'title', direction: 'asc' }])
+  assert.deepEqual(
+    useTaskStore
+      .getState()
+      .getPreparedTasks('custom-view')
+      .map((task) => task.id),
+    ['task-2']
+  )
+})
+
 test('updateView stores a cloned normalized view result', async () => {
   await resetStore()
   const view: ViewDefinition = {

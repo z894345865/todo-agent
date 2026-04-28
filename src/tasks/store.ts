@@ -102,6 +102,11 @@ function normalizeViewUpdate(state: TaskStore, view: ViewDefinition): ViewDefini
   return cloneView(normalized)
 }
 
+function normalizeSearchQuery(query: string): string | undefined {
+  const normalized = query.trim()
+  return normalized ? normalized : undefined
+}
+
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
@@ -121,6 +126,7 @@ export interface TaskStore {
   deleteTask: (id: string) => Promise<void>
   completeTask: (id: string) => Promise<Task | undefined>
   createTag: (name: string) => Promise<Tag>
+  setViewSearchQuery: (viewId: string, query: string) => void
   updateView: (view: ViewDefinition) => Promise<ViewDefinition>
   setActiveView: (viewId: string) => Promise<void>
   setSelectedTask: (taskId: string | undefined) => Promise<void>
@@ -242,6 +248,31 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         throw error
       }
     }),
+
+  setViewSearchQuery: (viewId, query) => {
+    const normalizedQuery = normalizeSearchQuery(query)
+    const hasView = get().views.some((view) => view.id === viewId)
+    if (!hasView) {
+      return
+    }
+
+    set({
+      views: get().views.map((view) => {
+        if (view.id !== viewId) {
+          return view
+        }
+        const next = cloneView(view)
+        if (normalizedQuery) {
+          next.searchQuery = normalizedQuery
+        } else {
+          delete next.searchQuery
+        }
+        return next
+      }),
+      error: null,
+    })
+    notifyExternal()
+  },
 
   updateView: (view) => {
     const updated = normalizeViewUpdate(get(), view)
