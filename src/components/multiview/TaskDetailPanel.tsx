@@ -1,20 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { PRIORITY_LABELS, STATUS_LABELS } from '../../tasks/displayLabels.ts'
 import { useTaskStore } from '../../tasks/store.ts'
 import type { TaskPriority, TaskStatus } from '../../tasks/types.ts'
 import { shouldCommitTextInputChange, toOptionalTextValue } from './textInputDraft.ts'
 
 const STATUS_OPTIONS: Array<{ value: TaskStatus; label: string }> = [
-  { value: 'todo', label: '待办' },
-  { value: 'doing', label: '进行中' },
-  { value: 'done', label: '已完成' },
-  { value: 'blocked', label: '阻塞' },
+  { value: 'todo', label: STATUS_LABELS.todo },
+  { value: 'doing', label: STATUS_LABELS.doing },
+  { value: 'done', label: STATUS_LABELS.done },
+  { value: 'blocked', label: STATUS_LABELS.blocked },
 ]
 
 const PRIORITY_OPTIONS: Array<{ value: TaskPriority; label: string }> = [
-  { value: 'urgent', label: '紧急' },
-  { value: 'high', label: '高' },
-  { value: 'medium', label: '中' },
-  { value: 'low', label: '低' },
+  { value: 'urgent', label: PRIORITY_LABELS.urgent },
+  { value: 'high', label: PRIORITY_LABELS.high },
+  { value: 'medium', label: PRIORITY_LABELS.medium },
+  { value: 'low', label: PRIORITY_LABELS.low },
 ]
 
 export function TaskDetailPanel() {
@@ -87,12 +88,7 @@ export function TaskDetailPanel() {
     <aside className="task-detail-panel" aria-label="任务详情">
       <div className="task-detail-panel__header">
         <h2>任务详情</h2>
-        <button
-          aria-label="关闭任务详情"
-          className="task-detail-panel__close"
-          onClick={() => void setSelectedTask(undefined).catch(console.error)}
-          type="button"
-        >
+        <button aria-label="关闭任务详情" className="task-detail-panel__close" onClick={() => void setSelectedTask(undefined).catch(console.error)} type="button">
           x
         </button>
       </div>
@@ -124,10 +120,7 @@ export function TaskDetailPanel() {
       <div className="task-detail-panel__row">
         <label className="task-field">
           <span>状态</span>
-          <select
-            onChange={(event) => void updateTask(task.id, { status: event.target.value as TaskStatus }).catch(console.error)}
-            value={task.status}
-          >
+          <select onChange={(event) => void updateTask(task.id, { status: event.target.value as TaskStatus }).catch(console.error)} value={task.status}>
             {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -138,10 +131,7 @@ export function TaskDetailPanel() {
 
         <label className="task-field">
           <span>优先级</span>
-          <select
-            onChange={(event) => void updateTask(task.id, { priority: event.target.value as TaskPriority }).catch(console.error)}
-            value={task.priority}
-          >
+          <select onChange={(event) => void updateTask(task.id, { priority: event.target.value as TaskPriority }).catch(console.error)} value={task.priority}>
             {PRIORITY_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -153,11 +143,7 @@ export function TaskDetailPanel() {
 
       <label className="task-field">
         <span>截止日期</span>
-        <input
-          onChange={(event) => void updateTask(task.id, { dueDate: event.target.value || undefined }).catch(console.error)}
-          type="date"
-          value={task.dueDate ?? ''}
-        />
+        <input onChange={(event) => void updateTask(task.id, { dueDate: event.target.value || undefined }).catch(console.error)} type="date" value={task.dueDate ?? ''} />
       </label>
 
       <label className="task-field">
@@ -195,7 +181,7 @@ export function TaskDetailPanel() {
               event.currentTarget.blur()
             }
           }}
-          placeholder="Design, Follow up"
+          placeholder="设计, 跟进"
           type="text"
           value={tagText}
         />

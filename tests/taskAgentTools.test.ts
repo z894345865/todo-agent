@@ -153,7 +153,7 @@ test('update_view updates the active view and rejects unknown fields', async () 
   })
 
   const view = useTaskStore.getState().views.find((item) => item.id === useTaskStore.getState().activeViewId)
-  assert.match(result, /Updated view: "Grid" \[id: grid-default\]/)
+  assert.match(result, /Updated view: "表格" \[id: grid-default\]/)
   assert.deepEqual(view?.filters, [{ fieldId: 'status', operator: 'is', value: 'doing' }])
   assert.deepEqual(view?.sorts, [{ fieldId: 'priority', direction: 'asc' }])
   assert.equal(view?.groupBy, 'status')

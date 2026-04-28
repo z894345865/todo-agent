@@ -34,11 +34,11 @@ export function TaskCalendarView({ view }: TaskCalendarViewProps) {
     <div className="task-calendar-view">
       <header className="task-calendar-view__header">
         <button type="button" onClick={() => setCurrentMonth((month) => addMonths(month, -1))} aria-label="上个月">
-          ‹
+          上月
         </button>
         <h2>{MONTH_FORMATTER.format(currentMonth)}</h2>
         <button type="button" onClick={() => setCurrentMonth((month) => addMonths(month, 1))} aria-label="下个月">
-          ›
+          下月
         </button>
       </header>
 
@@ -76,11 +76,7 @@ export function TaskCalendarView({ view }: TaskCalendarViewProps) {
           {unscheduledTasks.map((task) => (
             <div className="task-calendar-unscheduled__item" key={task.id}>
               <CalendarTaskButton task={task} onSelectTask={setSelectedTask} />
-              <input
-                aria-label={`设置 ${task.title} 的截止日期`}
-                type="date"
-                onChange={(event) => void updateTask(task.id, { dueDate: event.target.value || undefined }).catch(console.error)}
-              />
+              <input aria-label={`设置 ${task.title} 的截止日期`} type="date" onChange={(event) => void updateTask(task.id, { dueDate: event.target.value || undefined }).catch(console.error)} />
             </div>
           ))}
         </div>

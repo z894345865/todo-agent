@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import DataEditor, { GridCellKind, type EditableGridCell, type GridCell, type GridColumn, type Item } from '@glideapps/glide-data-grid'
 import '@glideapps/glide-data-grid/dist/index.css'
+import { getFieldLabel } from '../../tasks/displayLabels.ts'
 import { useTaskStore } from '../../tasks/store.ts'
 import type { ViewDefinition } from '../../tasks/types.ts'
 import { cellToTaskUpdate, parseItem, taskFieldToGridCell } from './cellRenderers.tsx'
@@ -29,7 +30,7 @@ export function TaskGridView({ view }: TaskGridViewProps) {
     () =>
       visibleFields.map((field) => ({
         id: String(field.id),
-        title: field.name,
+        title: getFieldLabel(field),
         width: view.columnWidths?.[String(field.id)] ?? DEFAULT_COLUMN_WIDTH,
       })),
     [view.columnWidths, visibleFields]

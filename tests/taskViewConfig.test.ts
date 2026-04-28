@@ -106,12 +106,12 @@ test('resetColumnWidths restores widths from field defaults', () => {
 })
 
 test('chip formatters produce readable labels', () => {
-  assert.equal(formatFilterChip({ fieldId: 'status', operator: 'is', value: 'todo' }, DEFAULT_FIELDS), 'Status is todo')
-  assert.equal(formatFilterChip({ fieldId: 'status', operator: 'is', value: ['todo', 'doing'] }, DEFAULT_FIELDS), 'Status is todo, doing')
+  assert.equal(formatFilterChip({ fieldId: 'status', operator: 'is', value: 'todo' }, DEFAULT_FIELDS), '状态 等于 待办')
+  assert.equal(formatFilterChip({ fieldId: 'status', operator: 'is', value: ['todo', 'doing'] }, DEFAULT_FIELDS), '状态 等于 待办、进行中')
   assert.equal(
     formatFilterChip({ fieldId: 'dueDate', operator: 'between', value: ['2026-04-01', '2026-04-30'] }, DEFAULT_FIELDS),
-    'Due date between 2026-04-01 to 2026-04-30'
+    '截止日期 介于 2026-04-01 到 2026-04-30'
   )
-  assert.equal(formatSortChip({ fieldId: 'dueDate', direction: 'asc' }, DEFAULT_FIELDS), 'Due date ascending')
-  assert.equal(formatGroupChip('priority', DEFAULT_FIELDS), 'Grouped by Priority')
+  assert.equal(formatSortChip({ fieldId: 'dueDate', direction: 'asc' }, DEFAULT_FIELDS), '截止日期 升序')
+  assert.equal(formatGroupChip('priority', DEFAULT_FIELDS), '按 优先级 分组')
 })

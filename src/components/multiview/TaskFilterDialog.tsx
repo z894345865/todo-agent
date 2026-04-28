@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { addFilterRule, clearFilterRule } from '../../tasks/viewConfig.ts'
+import { getFieldLabel, getFieldOptionLabel } from '../../tasks/displayLabels.ts'
 import { useTaskStore } from '../../tasks/store.ts'
 import type { FieldDefinition, FieldOption, FieldType, FilterRule, ViewDefinition } from '../../tasks/types.ts'
 
@@ -93,7 +94,7 @@ export function TaskFilterDialog({ open, onOpenChange, onUpdateView, view }: Tas
           <select value={fieldId} onChange={(event) => setFieldId(event.target.value)}>
             {filterFields.map((field) => (
               <option key={String(field.id)} value={String(field.id)}>
-                {field.name}
+                {getFieldLabel(field)}
               </option>
             ))}
           </select>
@@ -116,7 +117,7 @@ export function TaskFilterDialog({ open, onOpenChange, onUpdateView, view }: Tas
                 <option value="">请选择</option>
                 {valueOptions.map((option) => (
                   <option key={option.id} value={option.id}>
-                    {option.name}
+                    {getFieldOptionLabel(String(selectedField.id), option.id, valueOptions)}
                   </option>
                 ))}
               </select>

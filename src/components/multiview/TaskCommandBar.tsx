@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
+import { getViewLabel, getViewTypeLabel } from '../../tasks/displayLabels.ts'
 import { useTaskStore } from '../../tasks/store.ts'
-import type { ViewDefinition, ViewType } from '../../tasks/types.ts'
+import type { ViewDefinition } from '../../tasks/types.ts'
 
 interface TaskCommandBarProps {
   view: ViewDefinition
@@ -11,12 +12,6 @@ interface TaskCommandBarProps {
 }
 
 const SEARCH_SAVE_DELAY_MS = 350
-
-const VIEW_TYPE_LABELS: Record<ViewType, string> = {
-  grid: '表格',
-  kanban: '看板',
-  calendar: '日历',
-}
 
 export function TaskCommandBar({ view, onOpenFields, onOpenFilters, onOpenGroup, onOpenSort }: TaskCommandBarProps) {
   const createTask = useTaskStore((state) => state.createTask)
@@ -66,28 +61,28 @@ export function TaskCommandBar({ view, onOpenFields, onOpenFilters, onOpenGroup,
   return (
     <div className="task-command-bar">
       <div className="task-command-bar__view">
-        <strong>{view.name}</strong>
-        <span>{VIEW_TYPE_LABELS[view.type]}</span>
+        <strong>{getViewLabel(view)}</strong>
+        <span>{getViewTypeLabel(view.type)}</span>
       </div>
       <label className="task-command-bar__search">
-        <span aria-hidden="true">Search</span>
+        <span aria-hidden="true">搜索</span>
         <input aria-label="搜索记录" placeholder="搜索记录..." value={query} onChange={(event) => saveSearchQuery(event.target.value)} />
       </label>
-      <div className="task-command-bar__actions" aria-label={`${view.name} 操作`}>
+      <div className="task-command-bar__actions" aria-label={`${getViewLabel(view)} 操作`}>
         <button type="button" onClick={onOpenFields}>
-          Fields
+          字段
         </button>
         <button type="button" onClick={onOpenFilters}>
-          Filter
+          筛选
         </button>
         <button type="button" onClick={onOpenGroup}>
-          Group
+          分组
         </button>
         <button type="button" onClick={onOpenSort}>
-          Sort
+          排序
         </button>
         <button className="task-command-bar__primary" type="button" onClick={() => void createTask({ title: '新任务' }).catch(console.error)}>
-          New
+          新建
         </button>
       </div>
     </div>

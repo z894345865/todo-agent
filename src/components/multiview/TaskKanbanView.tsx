@@ -1,30 +1,24 @@
 import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { useCallback, useMemo, useState } from 'react'
+import { PRIORITY_LABELS, STATUS_LABELS } from '../../tasks/displayLabels.ts'
 import { groupTasks } from '../../tasks/model.ts'
 import { useTaskStore } from '../../tasks/store.ts'
 import type { Task, TaskPriority, TaskStatus, ViewDefinition } from '../../tasks/types.ts'
 
 const STATUS_COLUMNS: Array<{ id: TaskStatus; label: string }> = [
-  { id: 'todo', label: '待办' },
-  { id: 'doing', label: '进行中' },
-  { id: 'done', label: '已完成' },
-  { id: 'blocked', label: '阻塞' },
+  { id: 'todo', label: STATUS_LABELS.todo },
+  { id: 'doing', label: STATUS_LABELS.doing },
+  { id: 'done', label: STATUS_LABELS.done },
+  { id: 'blocked', label: STATUS_LABELS.blocked },
 ]
 
 const PRIORITY_COLUMNS: Array<{ id: TaskPriority; label: string }> = [
-  { id: 'urgent', label: '紧急' },
-  { id: 'high', label: '高' },
-  { id: 'medium', label: '中' },
-  { id: 'low', label: '低' },
+  { id: 'urgent', label: PRIORITY_LABELS.urgent },
+  { id: 'high', label: PRIORITY_LABELS.high },
+  { id: 'medium', label: PRIORITY_LABELS.medium },
+  { id: 'low', label: PRIORITY_LABELS.low },
 ]
-
-const PRIORITY_LABELS: Record<TaskPriority, string> = {
-  urgent: '紧急',
-  high: '高',
-  medium: '中',
-  low: '低',
-}
 
 interface TaskKanbanViewProps {
   view: ViewDefinition

@@ -17,7 +17,7 @@ export function TaskWorkspace() {
   return (
     <main className="task-base">
       <TaskBaseSidebar />
-      <section className="task-base__main" aria-label="Task workspace">
+      <section className="task-base__main" aria-label="任务工作区">
         <TaskToolbar />
         {error && <div className="task-workspace__error">{error}</div>}
         <div className="task-base__view-shell">

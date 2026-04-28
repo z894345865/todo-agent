@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { getFieldLabel } from '../../tasks/displayLabels.ts'
 import { setSortRule } from '../../tasks/viewConfig.ts'
 import { useTaskStore } from '../../tasks/store.ts'
 import type { SortRule, ViewDefinition } from '../../tasks/types.ts'
@@ -40,7 +41,7 @@ export function TaskSortDialog({ open, onOpenChange, onUpdateView, view }: TaskS
           <select value={fieldId} onChange={(event) => setFieldId(event.target.value)}>
             {fields.map((field) => (
               <option key={String(field.id)} value={String(field.id)}>
-                {field.name}
+                {getFieldLabel(field)}
               </option>
             ))}
           </select>

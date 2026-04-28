@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { getFieldLabel } from '../../tasks/displayLabels.ts'
 import { setGroupBy } from '../../tasks/viewConfig.ts'
 import { useTaskStore } from '../../tasks/store.ts'
 import type { ViewDefinition } from '../../tasks/types.ts'
@@ -46,7 +47,7 @@ export function TaskGroupDialog({ open, onOpenChange, onUpdateView, view }: Task
           <select value={fieldId} onChange={(event) => setFieldId(event.target.value)}>
             {GROUP_FIELD_IDS.map((id) => (
               <option key={id} value={id}>
-                {id === 'none' ? '不分组' : fields.find((field) => field.id === id)?.name ?? id}
+                {id === 'none' ? '不分组' : getFieldLabel(fields.find((field) => field.id === id) ?? id)}
               </option>
             ))}
           </select>

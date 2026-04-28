@@ -1,11 +1,10 @@
 import type { EditableGridCell, GridCell, Item } from '@glideapps/glide-data-grid'
 import { GridCellKind } from '@glideapps/glide-data-grid'
-import type { FieldDefinition, Tag, Task, TaskPriority, TaskStatus } from '../../tasks/types.ts'
+import { PRIORITY_LABELS, STATUS_LABELS, parseTaskPriorityLabel, parseTaskStatusLabel } from '../../tasks/displayLabels.ts'
+import type { FieldDefinition, Tag, Task } from '../../tasks/types.ts'
 
 type TaskUpdates = Partial<Omit<Task, 'id' | 'createdAt'>>
 
-const STATUS_VALUES: TaskStatus[] = ['todo', 'doing', 'done', 'blocked']
-const PRIORITY_VALUES: TaskPriority[] = ['urgent', 'high', 'medium', 'low']
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 export function parseItem(item: Item): { columnIndex: number; rowIndex: number } {
@@ -37,10 +36,14 @@ export function cellToTaskUpdate(cell: EditableGridCell, field: FieldDefinition,
       const title = value.trim()
       return title ? { title } : {}
     }
-    case 'status':
-      return isTaskStatus(value) ? { status: value } : {}
-    case 'priority':
-      return isTaskPriority(value) ? { priority: value } : {}
+    case 'status': {
+      const status = parseTaskStatusLabel(value)
+      return status ? { status } : {}
+    }
+    case 'priority': {
+      const priority = parseTaskPriorityLabel(value)
+      return priority ? { priority } : {}
+    }
     case 'tagIds':
       return { tagIds: parseTagIds(value, tags) }
     case 'dueDate':
@@ -69,10 +72,12 @@ function getFieldDisplayValue(task: Task, field: FieldDefinition, tags: Tag[]): 
     case 'updatedAt':
       return formatDateTime(task[field.id])
     case 'title':
-    case 'status':
-    case 'priority':
     case 'id':
       return task[field.id]
+    case 'status':
+      return STATUS_LABELS[task.status]
+    case 'priority':
+      return PRIORITY_LABELS[task.priority]
     default:
       return ''
   }
@@ -132,12 +137,4 @@ function isDateOnly(value: string): boolean {
 
   const date = new Date(`${value}T00:00:00.000Z`)
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
-}
-
-function isTaskStatus(value: string): value is TaskStatus {
-  return STATUS_VALUES.includes(value as TaskStatus)
-}
-
-function isTaskPriority(value: string): value is TaskPriority {
-  return PRIORITY_VALUES.includes(value as TaskPriority)
 }

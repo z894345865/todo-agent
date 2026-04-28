@@ -1,16 +1,11 @@
+import { getViewLabel, getViewTypeLabel } from '../../tasks/displayLabels.ts'
 import { useTaskStore } from '../../tasks/store.ts'
 import type { ViewType } from '../../tasks/types.ts'
 
-const VIEW_LABEL_BY_TYPE: Record<ViewType, string> = {
-  grid: 'Grid',
-  kanban: 'Kanban',
-  calendar: 'Calendar',
-}
-
 const VIEW_ICON_BY_TYPE: Record<ViewType, string> = {
-  grid: 'G',
-  kanban: 'K',
-  calendar: 'C',
+  grid: '表',
+  kanban: '板',
+  calendar: '日',
 }
 
 export function TaskBaseSidebar() {
@@ -22,24 +17,24 @@ export function TaskBaseSidebar() {
   const setActiveView = useTaskStore((state) => state.setActiveView)
 
   return (
-    <aside className="task-base-sidebar" aria-label="Task base navigation">
+    <aside className="task-base-sidebar" aria-label="任务库导航">
       <div className="task-base-sidebar__brand">
-        <span className="task-base-sidebar__workspace">Local base</span>
-        <strong>TODO Base</strong>
+        <span className="task-base-sidebar__workspace">本地库</span>
+        <strong>TODO 任务库</strong>
       </div>
 
       <div className="task-base-sidebar__table">
         <span className="task-base-sidebar__table-mark" aria-hidden="true" />
         <div>
-          <strong>Tasks</strong>
+          <strong>任务</strong>
           <span>
-            {tasks.length} records | {fields.length} fields | {views.length} views
+            {tasks.length} 条记录 | {fields.length} 个字段 | {views.length} 个视图
           </span>
         </div>
       </div>
 
-      <div className="task-base-sidebar__section-title">Views</div>
-      <nav className="task-base-sidebar__views" aria-label="Task views">
+      <div className="task-base-sidebar__section-title">视图</div>
+      <nav className="task-base-sidebar__views" aria-label="任务视图">
         {views.map((view) => {
           const filteredCount = getPreparedTasks(view.id).length
           const isActive = view.id === activeViewId
@@ -56,9 +51,9 @@ export function TaskBaseSidebar() {
                 {VIEW_ICON_BY_TYPE[view.type]}
               </span>
               <span className="task-base-sidebar__view-text">
-                <strong>{view.name}</strong>
+                <strong>{getViewLabel(view)}</strong>
                 <small>
-                  {VIEW_LABEL_BY_TYPE[view.type]} | {filteredCount} records | {view.visibleFieldIds.length} fields
+                  {getViewTypeLabel(view.type)} | {filteredCount} 条记录 | {view.visibleFieldIds.length} 个字段
                 </small>
               </span>
             </button>

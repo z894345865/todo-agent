@@ -1,4 +1,5 @@
 import { DEFAULT_VIEWS } from '../../tasks/defaults.ts'
+import { getFieldLabel } from '../../tasks/displayLabels.ts'
 import { resetColumnWidths, setVisibleField } from '../../tasks/viewConfig.ts'
 import { useTaskStore } from '../../tasks/store.ts'
 import type { ViewDefinition } from '../../tasks/types.ts'
@@ -36,7 +37,7 @@ export function TaskFieldConfigDialog({ open, onOpenChange, onUpdateView, view }
                 type="checkbox"
                 onChange={(event) => void onUpdateView(view.id, (latestView) => setVisibleField(latestView, String(field.id), event.target.checked)).catch(console.error)}
               />
-              <span>{field.name}</span>
+              <span>{getFieldLabel(field)}</span>
               {field.id === 'title' && <small>必填</small>}
             </label>
           ))}

@@ -1,4 +1,5 @@
 import type { FieldDefinition, FilterRule, SortRule, ViewDefinition } from './types.ts'
+import { getFieldLabel, getFieldOptionLabel } from './displayLabels.ts'
 
 const TITLE_FIELD_ID = 'title'
 
@@ -65,17 +66,18 @@ export function formatFilterChip(rule: FilterRule, fields: FieldDefinition[]): s
     return `${field} ${operator}`
   }
   if (Array.isArray(rule.value)) {
-    return `${field} ${operator} ${rule.value.join(rule.operator === 'between' ? ' to ' : ', ')}`
+    const values = rule.value.map((value) => formatRuleValue(rule.fieldId, value, fields))
+    return `${field} ${operator} ${values.join(rule.operator === 'between' ? ' 到 ' : '、')}`
   }
-  return `${field} ${operator} ${String(rule.value)}`
+  return `${field} ${operator} ${formatRuleValue(rule.fieldId, rule.value, fields)}`
 }
 
 export function formatSortChip(sort: SortRule, fields: FieldDefinition[]): string {
-  return `${fieldName(sort.fieldId, fields)} ${sort.direction === 'asc' ? 'ascending' : 'descending'}`
+  return `${fieldName(sort.fieldId, fields)} ${sort.direction === 'asc' ? '升序' : '降序'}`
 }
 
 export function formatGroupChip(fieldId: string | undefined, fields: FieldDefinition[]): string | undefined {
-  return fieldId ? `Grouped by ${fieldName(fieldId, fields)}` : undefined
+  return fieldId ? `按 ${fieldName(fieldId, fields)} 分组` : undefined
 }
 
 function cloneView(view: ViewDefinition): ViewDefinition {
@@ -106,13 +108,22 @@ function cloneFilterValue(value: unknown): unknown {
 }
 
 function fieldName(fieldId: string, fields: FieldDefinition[]): string {
-  return fields.find((field) => field.id === fieldId)?.name ?? fieldId
+  return getFieldLabel(fields.find((field) => field.id === fieldId) ?? fieldId)
+}
+
+function formatRuleValue(fieldId: string, value: unknown, fields: FieldDefinition[]): string {
+  const options = fields.find((field) => field.id === fieldId)?.options
+  return getFieldOptionLabel(fieldId, value, options)
 }
 
 function operatorLabel(operator: FilterRule['operator']): string {
-  if (operator === 'is') return 'is'
-  if (operator === 'isNot') return 'is not'
-  if (operator === 'isEmpty') return 'is empty'
-  if (operator === 'isNotEmpty') return 'is not empty'
+  if (operator === 'is') return '等于'
+  if (operator === 'isNot') return '不等于'
+  if (operator === 'contains') return '包含'
+  if (operator === 'isEmpty') return '为空'
+  if (operator === 'isNotEmpty') return '不为空'
+  if (operator === 'before') return '早于'
+  if (operator === 'after') return '晚于'
+  if (operator === 'between') return '介于'
   return operator
 }
