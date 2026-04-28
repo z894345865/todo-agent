@@ -169,7 +169,7 @@ export function TaskGridView({ view }: TaskGridViewProps) {
       smoothScrollY
       trailingRowOptions={{ hint: '新任务', sticky: true }}
       width="100%"
-      height={420}
+      height="100%"
     />
   )
 }
