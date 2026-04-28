@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTaskStore } from '../../tasks/store.ts'
 import type { TaskPriority, TaskStatus } from '../../tasks/types.ts'
+import { shouldCommitTextInputChange, toOptionalTextValue } from './textInputDraft.ts'
 
 const STATUS_OPTIONS: Array<{ value: TaskStatus; label: string }> = [
   { value: 'todo', label: '待办' },
@@ -23,8 +24,12 @@ export function TaskDetailPanel() {
   const updateTask = useTaskStore((state) => state.updateTask)
   const createTag = useTaskStore((state) => state.createTag)
   const setSelectedTask = useTaskStore((state) => state.setSelectedTask)
+  const [titleText, setTitleText] = useState('')
+  const [descriptionText, setDescriptionText] = useState('')
   const [tagText, setTagText] = useState('')
   const [tagError, setTagError] = useState<string>()
+  const titleComposing = useRef(false)
+  const descriptionComposing = useRef(false)
 
   const task = tasks.find((item) => item.id === selectedTaskId)
   const taskTags = useMemo(() => tags.filter((tag) => task?.tagIds.includes(tag.id)), [tags, task])
@@ -34,8 +39,28 @@ export function TaskDetailPanel() {
     setTagError(undefined)
   }, [task?.id, taskTags])
 
+  useEffect(() => {
+    setTitleText(task?.title ?? '')
+    setDescriptionText(task?.description ?? '')
+    titleComposing.current = false
+    descriptionComposing.current = false
+  }, [task?.id])
+
   if (!selectedTaskId || !task) {
     return null
+  }
+
+  const saveTitle = (value: string) => {
+    if (value.trim() && value !== task.title) {
+      void updateTask(task.id, { title: value }).catch(console.error)
+    }
+  }
+
+  const saveDescription = (value: string) => {
+    const description = toOptionalTextValue(value)
+    if (description !== task.description) {
+      void updateTask(task.id, { description }).catch(console.error)
+    }
   }
 
   const saveTags = async () => {
@@ -68,21 +93,31 @@ export function TaskDetailPanel() {
           onClick={() => void setSelectedTask(undefined).catch(console.error)}
           type="button"
         >
-          ×
+          x
         </button>
       </div>
 
       <label className="task-field">
         <span>标题</span>
         <input
+          onBlur={(event) => saveTitle(event.target.value)}
           onChange={(event) => {
             const title = event.target.value
-            if (title.trim()) {
-              void updateTask(task.id, { title }).catch(console.error)
+            setTitleText(title)
+            if (shouldCommitTextInputChange(titleComposing.current, Boolean((event.nativeEvent as InputEvent).isComposing))) {
+              saveTitle(title)
             }
           }}
+          onCompositionEnd={(event) => {
+            titleComposing.current = false
+            setTitleText(event.currentTarget.value)
+            saveTitle(event.currentTarget.value)
+          }}
+          onCompositionStart={() => {
+            titleComposing.current = true
+          }}
           type="text"
-          value={task.title}
+          value={titleText}
         />
       </label>
 
@@ -128,9 +163,24 @@ export function TaskDetailPanel() {
       <label className="task-field">
         <span>描述</span>
         <textarea
-          onChange={(event) => void updateTask(task.id, { description: event.target.value || undefined }).catch(console.error)}
+          onBlur={(event) => saveDescription(event.target.value)}
+          onChange={(event) => {
+            const description = event.target.value
+            setDescriptionText(description)
+            if (shouldCommitTextInputChange(descriptionComposing.current, Boolean((event.nativeEvent as InputEvent).isComposing))) {
+              saveDescription(description)
+            }
+          }}
+          onCompositionEnd={(event) => {
+            descriptionComposing.current = false
+            setDescriptionText(event.currentTarget.value)
+            saveDescription(event.currentTarget.value)
+          }}
+          onCompositionStart={() => {
+            descriptionComposing.current = true
+          }}
           rows={5}
-          value={task.description ?? ''}
+          value={descriptionText}
         />
       </label>
 
