@@ -23,7 +23,7 @@ export const DEFAULT_FIELDS: FieldDefinition[] = [
   { id: 'title', name: FIELD_LABELS.title, type: 'text', required: true },
   { id: 'status', name: FIELD_LABELS.status, type: 'singleSelect', required: true, options: STATUS_OPTIONS },
   { id: 'priority', name: FIELD_LABELS.priority, type: 'singleSelect', required: true, options: PRIORITY_OPTIONS },
-  { id: 'tagIds', name: FIELD_LABELS.tagIds, type: 'multiSelect' },
+  { id: 'tagIds', name: FIELD_LABELS.tagIds, type: 'singleSelect' },
   { id: 'dueDate', name: FIELD_LABELS.dueDate, type: 'date' },
   { id: 'completedAt', name: FIELD_LABELS.completedAt, type: 'date', readOnly: true },
   { id: 'description', name: FIELD_LABELS.description, type: 'longText' },

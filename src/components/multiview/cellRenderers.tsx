@@ -2,10 +2,16 @@ import type { EditableGridCell, GridCell, Item } from '@glideapps/glide-data-gri
 import { GridCellKind } from '@glideapps/glide-data-grid'
 import { PRIORITY_LABELS, STATUS_LABELS, parseTaskPriorityLabel, parseTaskStatusLabel } from '../../tasks/displayLabels.ts'
 import type { FieldDefinition, Tag, Task } from '../../tasks/types.ts'
+import { PRIORITY_VISUALS, STATUS_VISUALS, tagVisualToken, type VisualToken } from './taskVisuals.ts'
 
 type TaskUpdates = Partial<Omit<Task, 'id' | 'createdAt'>>
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+export interface GridPill {
+  label: string
+  token: VisualToken
+}
 
 export function parseItem(item: Item): { columnIndex: number; rowIndex: number } {
   const [columnIndex, rowIndex] = item
@@ -21,6 +27,24 @@ export function taskFieldToGridCell(task: Task, field: FieldDefinition, tags: Ta
     readonly: field.readOnly,
     data: displayData,
     displayData,
+  }
+}
+
+export function getTaskFieldPills(task: Task, field: FieldDefinition, tags: Tag[]): GridPill[] {
+  switch (field.id) {
+    case 'status':
+      return [{ label: STATUS_LABELS[task.status], token: STATUS_VISUALS[task.status] }]
+    case 'priority':
+      return [{ label: PRIORITY_LABELS[task.priority], token: PRIORITY_VISUALS[task.priority] }]
+    case 'tagIds':
+      return tags
+        .filter((tag) => task.tagIds.includes(tag.id))
+        .map((tag) => ({
+          label: tag.name,
+          token: tagVisualToken(tag.color),
+        }))
+    default:
+      return []
   }
 }
 
@@ -63,7 +87,7 @@ export function cellToTaskUpdate(cell: EditableGridCell, field: FieldDefinition,
 function getFieldDisplayValue(task: Task, field: FieldDefinition, tags: Tag[]): string {
   switch (field.id) {
     case 'tagIds':
-      return task.tagIds.map((tagId) => tags.find((tag) => tag.id === tagId)?.name ?? tagId).join(', ')
+      return task.tagIds[0] ? tags.find((tag) => tag.id === task.tagIds[0])?.name ?? task.tagIds[0] : ''
     case 'dueDate':
     case 'completedAt':
     case 'description':
@@ -100,15 +124,13 @@ function getEditableCellValue(cell: EditableGridCell): string {
 }
 
 function parseTagIds(value: string, tags: Tag[]): string[] {
-  const values = value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
+  const tagNameOrId = value.split(',')[0]?.trim()
+  if (!tagNameOrId) {
+    return []
+  }
 
-  return values.flatMap((item) => {
-    const tag = tags.find((candidate) => candidate.id === item || candidate.name === item)
-    return tag ? [tag.id] : []
-  })
+  const tag = tags.find((candidate) => candidate.id === tagNameOrId || candidate.name === tagNameOrId)
+  return tag ? [tag.id] : []
 }
 
 function parseOptionalDateUpdate(value: string): TaskUpdates {

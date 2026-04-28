@@ -61,21 +61,22 @@ export function ChatContainer() {
         title="TODO Assistant"
         style={{
           position: 'fixed',
-          bottom: 24,
-          right: 24,
-          width: 56,
-          height: 56,
+          bottom: 14,
+          right: 14,
+          width: 44,
+          height: 44,
           borderRadius: '50%',
-          background: '#007AFF',
+          background: '#2563eb',
           color: '#fff',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+          boxShadow: '0 8px 22px rgba(37,99,235,0.24)',
           zIndex: 9999,
-          fontSize: 24,
+          fontSize: 18,
           userSelect: 'none',
+          border: '1px solid rgba(255,255,255,0.72)',
         }}
       >
         💬
@@ -86,10 +87,10 @@ export function ChatContainer() {
         <div
           style={{
             position: 'fixed',
-            bottom: 90,
-            right: 24,
-            width: 380,
-            height: 520,
+            bottom: 68,
+            right: 14,
+            width: 'min(380px, calc(100vw - 28px))',
+            height: 'min(520px, calc(100vh - 82px))',
             display: 'flex',
             flexDirection: 'column',
             border: '1px solid #ddd',

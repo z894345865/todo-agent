@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { PRIORITY_LABELS, STATUS_LABELS } from '../../tasks/displayLabels.ts'
 import { useTaskStore } from '../../tasks/store.ts'
 import type { TaskPriority, TaskStatus } from '../../tasks/types.ts'
+import { isTaskOverdue } from './taskDates.ts'
+import { PRIORITY_VISUALS, STATUS_VISUALS, tagTokenStyle, tokenStyle } from './taskVisuals.ts'
 import { shouldCommitTextInputChange, toOptionalTextValue } from './textInputDraft.ts'
 
 const STATUS_OPTIONS: Array<{ value: TaskStatus; label: string }> = [
@@ -50,6 +52,7 @@ export function TaskDetailPanel() {
   if (!selectedTaskId || !task) {
     return null
   }
+  const overdue = isTaskOverdue(task)
 
   const saveTitle = (value: string) => {
     if (value.trim() && value !== task.title) {
@@ -67,16 +70,13 @@ export function TaskDetailPanel() {
   const saveTags = async () => {
     const names = parseTagNames(tagText)
     try {
-      const nextTags = []
-      for (const name of names) {
-        const existingTag = useTaskStore
-          .getState()
-          .tags.find((tag) => tag.name.toLocaleLowerCase() === name.toLocaleLowerCase())
-        nextTags.push(existingTag ?? (await createTag(name)))
-      }
+      const name = names[0]
+      const nextTag = name
+        ? useTaskStore.getState().tags.find((tag) => tag.name.toLocaleLowerCase() === name.toLocaleLowerCase()) ?? (await createTag(name))
+        : undefined
 
-      await updateTask(task.id, { tagIds: nextTags.map((tag) => tag.id) })
-      setTagText(nextTags.map((tag) => tag.name).join(', '))
+      await updateTask(task.id, { tagIds: nextTag ? [nextTag.id] : [] })
+      setTagText(nextTag?.name ?? '')
       setTagError(undefined)
     } catch (error) {
       console.error(error)
@@ -91,6 +91,16 @@ export function TaskDetailPanel() {
         <button aria-label="关闭任务详情" className="task-detail-panel__close" onClick={() => void setSelectedTask(undefined).catch(console.error)} type="button">
           x
         </button>
+      </div>
+
+      <div className="task-detail-panel__summary" aria-label="任务标记">
+        <span className="task-token" style={tokenStyle(STATUS_VISUALS[task.status])}>{STATUS_LABELS[task.status]}</span>
+        <span className="task-token" style={tokenStyle(PRIORITY_VISUALS[task.priority])}>{PRIORITY_LABELS[task.priority]}</span>
+        {taskTags.map((tag) => (
+          <span className="task-token task-token--tag" key={tag.id} style={tagTokenStyle(tag.color)}>
+            {tag.name}
+          </span>
+        ))}
       </div>
 
       <label className="task-field">
@@ -142,7 +152,10 @@ export function TaskDetailPanel() {
       </div>
 
       <label className="task-field">
-        <span>截止日期</span>
+        <span className="task-field__label">
+          截止日期
+          {overdue && <span className="task-overdue-icon" aria-label="任务已超期" role="img" />}
+        </span>
         <input onChange={(event) => void updateTask(task.id, { dueDate: event.target.value || undefined }).catch(console.error)} type="date" value={task.dueDate ?? ''} />
       </label>
 
@@ -181,7 +194,7 @@ export function TaskDetailPanel() {
               event.currentTarget.blur()
             }
           }}
-          placeholder="设计, 跟进"
+          placeholder="选择或输入一个标签"
           type="text"
           value={tagText}
         />
@@ -196,7 +209,7 @@ export function TaskDetailPanel() {
       <div className="task-detail-panel__tags" aria-label="当前标签">
         {taskTags.length > 0 ? (
           taskTags.map((tag) => (
-            <span className="task-detail-panel__tag" key={tag.id} style={{ borderColor: tag.color, color: tag.color }}>
+            <span className="task-detail-panel__tag" key={tag.id} style={tagTokenStyle(tag.color)}>
               {tag.name}
             </span>
           ))
@@ -221,5 +234,5 @@ function parseTagNames(value: string): string[] {
     }
   }
 
-  return names
+  return names.slice(0, 1)
 }

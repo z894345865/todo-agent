@@ -42,11 +42,11 @@ test('create_task creates structured task and list_tasks returns it with created
   assert.equal(task.description, 'Rewrite agent tools for task store')
   assert.deepEqual(
     tags.map((tag) => tag.name),
-    ['agent', 'multiview']
+    ['agent']
   )
   assert.deepEqual(task.tagIds, tags.map((tag) => tag.id))
   assert.match(listResult, /Plan multiview tools/)
-  assert.match(listResult, /agent, multiview/)
+  assert.match(listResult, /tag: agent/)
 })
 
 test('complete_task marks task done', async () => {
@@ -125,7 +125,7 @@ test('filter_tasks returns formatted tasks for structured filters including over
   assert.match(result, /status: blocked/)
   assert.match(result, /priority: urgent/)
   assert.match(result, /due: 2000-01-01/)
-  assert.match(result, /tags: ops/)
+  assert.match(result, /tag: ops/)
   assert.doesNotMatch(result, /Plan quarterly roadmap/)
   assert.doesNotMatch(result, /Document closed incident/)
 })

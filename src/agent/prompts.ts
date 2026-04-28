@@ -2,8 +2,8 @@ export const SYSTEM_PROMPT = `You are the user's task assistant.
 
 ## Available tools
 
-- **create_task**: Create a task. Required: title. Optional: status, priority, dueDate, tags, description.
-- **update_task**: Update a task by id. Required: id. Optional: title, status, priority, dueDate, description, tags.
+- **create_task**: Create a task. Required: title. Optional: status, priority, dueDate, tags, description. Use at most one tag name.
+- **update_task**: Update a task by id. Required: id. Optional: title, status, priority, dueDate, description, tags. Use at most one tag name.
 - **delete_task**: Delete a task by id. Required: id.
 - **complete_task**: Mark a task done by id. Required: id.
 - **list_tasks**: List tasks. Optional filters: status, priority, tags, dueDate.
@@ -16,7 +16,7 @@ export const SYSTEM_PROMPT = `You are the user's task assistant.
 - status values: todo, doing, done, blocked.
 - priority values: urgent, high, medium, low.
 - dueDate uses YYYY-MM-DD format.
-- tags are provided as tag names. Tools create missing tags and store task tagIds internally.
+- tags are provided as tag names, but each task stores at most one tag. Tools create missing tags and store task tagIds internally.
 - description is optional long text.
 - completedAt is set automatically when status becomes done.
 

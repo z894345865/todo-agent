@@ -64,7 +64,7 @@ test('create_task creates task and tags when tags are supplied', async () => {
   assert.equal(task.priority, 'urgent')
   assert.deepEqual(
     tags.map((tag) => tag.name),
-    ['work', 'agent']
+    ['work']
   )
   assert.deepEqual(task.tagIds, tags.map((tag) => tag.id))
 })
@@ -78,8 +78,8 @@ test('list_tasks filters tasks by tag', async () => {
   const taggedList = await todoTools.list_tasks.execute({ tags: ['work'] })
 
   assert.match(taggedList, /Tagged list test/)
-  assert.match(taggedList, /tags: work/)
-  assert.match(taggedResult, /tags: work/)
+  assert.match(taggedList, /tag: work/)
+  assert.match(taggedResult, /tag: work/)
   assert.doesNotMatch(taggedList, new RegExp(untagged.id))
 })
 

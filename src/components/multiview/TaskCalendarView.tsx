@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
+import { PRIORITY_LABELS, STATUS_LABELS } from '../../tasks/displayLabels.ts'
 import { useTaskStore } from '../../tasks/store.ts'
-import type { Task, ViewDefinition } from '../../tasks/types.ts'
+import type { Tag, Task, ViewDefinition } from '../../tasks/types.ts'
+import { PRIORITY_VISUALS, STATUS_VISUALS, tagTokenStyle, tokenStyle } from './taskVisuals.ts'
 
 const WEEKDAY_LABELS = ['一', '二', '三', '四', '五', '六', '日']
 const MONTH_FORMATTER = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' })
@@ -11,6 +13,7 @@ interface TaskCalendarViewProps {
 
 export function TaskCalendarView({ view }: TaskCalendarViewProps) {
   const tasks = useTaskStore((state) => state.getPreparedTasks(view.id))
+  const tags = useTaskStore((state) => state.tags)
   const setSelectedTask = useTaskStore((state) => state.setSelectedTask)
   const updateTask = useTaskStore((state) => state.updateTask)
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
@@ -34,11 +37,11 @@ export function TaskCalendarView({ view }: TaskCalendarViewProps) {
     <div className="task-calendar-view">
       <header className="task-calendar-view__header">
         <button type="button" onClick={() => setCurrentMonth((month) => addMonths(month, -1))} aria-label="上个月">
-          上月
+          <span className="task-calendar-view__nav-icon is-prev" aria-hidden="true" />
         </button>
         <h2>{MONTH_FORMATTER.format(currentMonth)}</h2>
         <button type="button" onClick={() => setCurrentMonth((month) => addMonths(month, 1))} aria-label="下个月">
-          下月
+          <span className="task-calendar-view__nav-icon is-next" aria-hidden="true" />
         </button>
       </header>
 
@@ -59,7 +62,7 @@ export function TaskCalendarView({ view }: TaskCalendarViewProps) {
               </time>
               <div className="task-calendar-day__tasks">
                 {dayTasks.map((task) => (
-                  <CalendarTaskButton key={task.id} task={task} onSelectTask={setSelectedTask} />
+                  <CalendarTaskButton key={task.id} task={task} tags={tags} onSelectTask={setSelectedTask} />
                 ))}
               </div>
             </section>
@@ -75,7 +78,7 @@ export function TaskCalendarView({ view }: TaskCalendarViewProps) {
         <div className="task-calendar-unscheduled__list">
           {unscheduledTasks.map((task) => (
             <div className="task-calendar-unscheduled__item" key={task.id}>
-              <CalendarTaskButton task={task} onSelectTask={setSelectedTask} />
+              <CalendarTaskButton task={task} tags={tags} onSelectTask={setSelectedTask} />
               <input aria-label={`设置 ${task.title} 的截止日期`} type="date" onChange={(event) => void updateTask(task.id, { dueDate: event.target.value || undefined }).catch(console.error)} />
             </div>
           ))}
@@ -87,13 +90,21 @@ export function TaskCalendarView({ view }: TaskCalendarViewProps) {
 
 interface CalendarTaskButtonProps {
   task: Task
+  tags: Tag[]
   onSelectTask: (taskId: string) => Promise<void>
 }
 
-function CalendarTaskButton({ task, onSelectTask }: CalendarTaskButtonProps) {
+function CalendarTaskButton({ task, tags, onSelectTask }: CalendarTaskButtonProps) {
+  const firstTag = tags.find((tag) => task.tagIds.includes(tag.id))
+
   return (
-    <button type="button" className="task-calendar-task" onClick={() => void onSelectTask(task.id).catch(console.error)}>
-      {task.title}
+    <button type="button" className="task-calendar-task" style={tokenStyle(PRIORITY_VISUALS[task.priority])} onClick={() => void onSelectTask(task.id).catch(console.error)}>
+      <span className="task-calendar-task__title">{task.title}</span>
+      <span className="task-calendar-task__meta">
+        <span style={tokenStyle(STATUS_VISUALS[task.status])}>{STATUS_LABELS[task.status]}</span>
+        <span>{PRIORITY_LABELS[task.priority]}</span>
+        {firstTag && <span style={tagTokenStyle(firstTag.color)}>{firstTag.name}</span>}
+      </span>
     </button>
   )
 }

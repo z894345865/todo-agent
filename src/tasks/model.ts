@@ -360,7 +360,7 @@ function normalizeTagIds(value: unknown): string[] {
     throw new Error('tagIds must be an array of strings')
   }
 
-  return [...value]
+  return value.slice(0, 1)
 }
 
 function normalizeOptionalDate(value: unknown, fieldName: string): string | undefined {

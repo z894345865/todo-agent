@@ -1,12 +1,17 @@
 import { useCallback, useMemo } from 'react'
-import DataEditor, { GridCellKind, type EditableGridCell, type GridCell, type GridColumn, type Item } from '@glideapps/glide-data-grid'
+import DataEditor, { GridCellKind, type DrawCellCallback, type EditableGridCell, type GridCell, type GridColumn, type Item, type Rectangle } from '@glideapps/glide-data-grid'
 import '@glideapps/glide-data-grid/dist/index.css'
 import { getFieldLabel } from '../../tasks/displayLabels.ts'
 import { useTaskStore } from '../../tasks/store.ts'
 import type { ViewDefinition } from '../../tasks/types.ts'
-import { cellToTaskUpdate, parseItem, taskFieldToGridCell } from './cellRenderers.tsx'
+import { cellToTaskUpdate, getTaskFieldPills, parseItem, taskFieldToGridCell, type GridPill } from './cellRenderers.tsx'
+import { isTaskOverdue } from './taskDates.ts'
 
 const DEFAULT_COLUMN_WIDTH = 160
+const PILL_HEIGHT = 22
+const PILL_GAP = 6
+const PILL_HORIZONTAL_PADDING = 10
+const OVERDUE_ICON_SIZE = 15
 
 interface TaskGridViewProps {
   view: ViewDefinition
@@ -84,6 +89,29 @@ export function TaskGridView({ view }: TaskGridViewProps) {
     [setSelectedTask, tasks]
   )
 
+  const drawCell = useCallback<DrawCellCallback>(
+    (args, drawContent) => {
+      const task = tasks[args.row]
+      const field = visibleFields[args.col]
+      const pills = task && field ? getTaskFieldPills(task, field, tags) : []
+
+      if (pills.length === 0 || args.cell.kind !== GridCellKind.Text) {
+        if (field?.id === 'dueDate' && task && isTaskOverdue(task) && task.dueDate) {
+          drawGridCellBase(args.ctx, args.rect, args.theme.bgCell, args.theme.borderColor, args.theme.horizontalBorderColor)
+          drawDueDateWithOverdueIcon(args.ctx, args.rect, task.dueDate, `${args.theme.baseFontStyle} ${args.theme.fontFamily}`, args.theme.cellHorizontalPadding, args.theme.textDark)
+          return
+        }
+
+        drawContent()
+        return
+      }
+
+      drawGridCellBase(args.ctx, args.rect, args.theme.bgCell, args.theme.borderColor, args.theme.horizontalBorderColor)
+      drawPills(args.ctx, args.rect, pills, `${args.theme.baseFontStyle} ${args.theme.fontFamily}`, args.theme.cellHorizontalPadding)
+    },
+    [tags, tasks, visibleFields]
+  )
+
   const handleColumnResize = useCallback(
     (column: GridColumn, newSize: number) => {
       if (!column.id) {
@@ -113,6 +141,7 @@ export function TaskGridView({ view }: TaskGridViewProps) {
       rows={tasks.length}
       getCellContent={getCellContent}
       getCellsForSelection
+      drawCell={drawCell}
       onCellClicked={handleCellClicked}
       onCellEdited={handleCellEdited}
       onColumnResizeEnd={handleColumnResize}
@@ -125,4 +154,123 @@ export function TaskGridView({ view }: TaskGridViewProps) {
       height={420}
     />
   )
+}
+
+function drawGridCellBase(ctx: CanvasRenderingContext2D, rect: Rectangle, bgCell: string, borderColor: string, horizontalBorderColor: string | undefined) {
+  ctx.save()
+  ctx.fillStyle = bgCell
+  ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
+
+  ctx.strokeStyle = borderColor
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(rect.x + rect.width - 0.5, rect.y)
+  ctx.lineTo(rect.x + rect.width - 0.5, rect.y + rect.height)
+  ctx.stroke()
+
+  ctx.strokeStyle = horizontalBorderColor ?? borderColor
+  ctx.beginPath()
+  ctx.moveTo(rect.x, rect.y + rect.height - 0.5)
+  ctx.lineTo(rect.x + rect.width, rect.y + rect.height - 0.5)
+  ctx.stroke()
+  ctx.restore()
+}
+
+function drawPills(ctx: CanvasRenderingContext2D, rect: Rectangle, pills: GridPill[], font: string, horizontalPadding: number) {
+  const startX = rect.x + horizontalPadding
+  const centerY = rect.y + rect.height / 2
+  const maxX = rect.x + rect.width - horizontalPadding
+  let x = startX
+
+  ctx.save()
+  ctx.font = font
+  ctx.textBaseline = 'middle'
+
+  for (const pill of pills) {
+    const textWidth = Math.ceil(ctx.measureText(pill.label).width)
+    const width = Math.min(textWidth + PILL_HORIZONTAL_PADDING * 2, maxX - x)
+    if (width < 18) {
+      break
+    }
+
+    const y = centerY - PILL_HEIGHT / 2
+    drawRoundedRect(ctx, x, y, width, PILL_HEIGHT, PILL_HEIGHT / 2)
+    ctx.fillStyle = pill.token.bg
+    ctx.fill()
+    ctx.strokeStyle = pill.token.border
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(x + PILL_HORIZONTAL_PADDING, y, Math.max(0, width - PILL_HORIZONTAL_PADDING * 2), PILL_HEIGHT)
+    ctx.clip()
+    ctx.fillStyle = pill.token.text
+    ctx.font = `700 ${font}`
+    ctx.fillText(pill.label, x + PILL_HORIZONTAL_PADDING, centerY + 0.5)
+    ctx.restore()
+
+    x += width + PILL_GAP
+    if (x >= maxX) {
+      break
+    }
+  }
+
+  ctx.restore()
+}
+
+function drawDueDateWithOverdueIcon(ctx: CanvasRenderingContext2D, rect: Rectangle, dueDate: string, font: string, horizontalPadding: number, textColor: string) {
+  const startX = rect.x + horizontalPadding
+  const centerY = rect.y + rect.height / 2
+  const maxX = rect.x + rect.width - horizontalPadding
+
+  ctx.save()
+  ctx.font = font
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = textColor
+  ctx.fillText(dueDate, startX, centerY + 0.5)
+
+  const textWidth = Math.ceil(ctx.measureText(dueDate).width)
+  const iconX = Math.min(startX + textWidth + 7, maxX - OVERDUE_ICON_SIZE)
+  if (iconX > startX + textWidth) {
+    drawOverdueWarningIcon(ctx, iconX, centerY - OVERDUE_ICON_SIZE / 2, OVERDUE_ICON_SIZE)
+  }
+
+  ctx.restore()
+}
+
+function drawOverdueWarningIcon(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
+  const radius = size / 2
+
+  ctx.save()
+  ctx.beginPath()
+  ctx.arc(x + radius, y + radius, radius, 0, Math.PI * 2)
+  ctx.fillStyle = '#fee2e2'
+  ctx.fill()
+  ctx.strokeStyle = '#ef4444'
+  ctx.lineWidth = 1
+  ctx.stroke()
+
+  ctx.fillStyle = '#dc2626'
+  ctx.font = `800 ${Math.max(10, Math.floor(size * 0.78))}px Avenir Next, sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('!', x + radius, y + radius + 0.5)
+  ctx.restore()
+}
+
+function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+  const resolvedRadius = Math.min(radius, width / 2, height / 2)
+
+  ctx.beginPath()
+  ctx.moveTo(x + resolvedRadius, y)
+  ctx.lineTo(x + width - resolvedRadius, y)
+  ctx.quadraticCurveTo(x + width, y, x + width, y + resolvedRadius)
+  ctx.lineTo(x + width, y + height - resolvedRadius)
+  ctx.quadraticCurveTo(x + width, y + height, x + width - resolvedRadius, y + height)
+  ctx.lineTo(x + resolvedRadius, y + height)
+  ctx.quadraticCurveTo(x, y + height, x, y + height - resolvedRadius)
+  ctx.lineTo(x, y + resolvedRadius)
+  ctx.quadraticCurveTo(x, y, x + resolvedRadius, y)
+  ctx.closePath()
 }

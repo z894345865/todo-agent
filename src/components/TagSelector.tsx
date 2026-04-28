@@ -30,9 +30,9 @@ export function TagSelector({ selected, onChange }: TagSelectorProps) {
 
   const toggle = (tag: Tag) => {
     if (selected.find((t) => t.id === tag.id)) {
-      onChange(selected.filter((t) => t.id !== tag.id))
+      onChange([])
     } else {
-      onChange([...selected, tag])
+      onChange([tag])
     }
   }
 
@@ -40,7 +40,7 @@ export function TagSelector({ selected, onChange }: TagSelectorProps) {
     if (!newName.trim()) return
     const color = TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)]
     const tag = await addTag(newName.trim(), color)
-    onChange([...selected, tag])
+    onChange([tag])
     setNewName('')
     setCreating(false)
   }

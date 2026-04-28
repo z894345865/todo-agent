@@ -35,7 +35,7 @@ export interface Tool {
 export const taskTools: Record<string, Tool> = {
   create_task: {
     name: 'create_task',
-    description: 'Create a structured task with optional status, priority, due date, tags, and description.',
+    description: 'Create a structured task with optional status, priority, due date, one tag, and description.',
     inputSchema: z.object({
       title: z.string(),
       status: taskStatusSchema.optional(),
@@ -62,7 +62,7 @@ export const taskTools: Record<string, Tool> = {
 
   update_task: {
     name: 'update_task',
-    description: 'Update a task by id. Supports title, status, priority, nullable due date, nullable description, and replacement tags.',
+    description: 'Update a task by id. Supports title, status, priority, nullable due date, nullable description, and a replacement tag.',
     inputSchema: z.object({
       id: z.string(),
       title: z.string().optional(),
@@ -311,7 +311,7 @@ async function getOrCreateTagIds(tagNames: string[] | undefined): Promise<string
   }
 
   const tagIds: string[] = []
-  for (const rawName of tagNames) {
+  for (const rawName of tagNames.slice(0, 1)) {
     const name = rawName.trim()
     if (!name) {
       continue
@@ -357,7 +357,7 @@ function filterTasks(
 
     if (input.tags && input.tags.length > 0) {
       const taskTagNames = getTagsForTask(task).map((tag) => tag.name.toLocaleLowerCase())
-      return input.tags.every((tagName) => taskTagNames.includes(tagName.toLocaleLowerCase()))
+      return input.tags.slice(0, 1).every((tagName) => taskTagNames.includes(tagName.toLocaleLowerCase()))
     }
 
     return true
@@ -375,12 +375,12 @@ function formatTaskList(tasks: Task[]): string {
 function formatTaskMeta(task: Task, tags: Tag[]): string {
   const parts = [`status: ${task.status}`, `priority: ${task.priority}`]
   if (task.dueDate) parts.push(`due: ${task.dueDate}`)
-  if (tags.length > 0) parts.push(`tags: ${tags.map((tag) => tag.name).join(', ')}`)
+  if (tags.length > 0) parts.push(`tag: ${tags[0].name}`)
   if (task.description) parts.push(`description: ${task.description}`)
   return ` | ${parts.join(' | ')}`
 }
 
 function getTagsForTask(task: Task): Tag[] {
   const tags = useTaskStore.getState().tags
-  return task.tagIds.map((tagId) => tags.find((tag) => tag.id === tagId)).filter((tag): tag is Tag => Boolean(tag))
+  return task.tagIds.slice(0, 1).map((tagId) => tags.find((tag) => tag.id === tagId)).filter((tag): tag is Tag => Boolean(tag))
 }

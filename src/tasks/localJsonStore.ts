@@ -123,7 +123,7 @@ function normalizeField(value: unknown): FieldDefinition {
     throw new Error('field name is required')
   }
 
-  const type = normalizeFieldType(value.type)
+  const type = value.id === 'tagIds' ? 'singleSelect' : normalizeFieldType(value.type)
 
   return {
     id: value.id,
