@@ -17,7 +17,6 @@
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr) auto;
   min-height: calc(100vh - 88px);
-  overflow: hidden;
   border: 1px solid #cfd7e3;
   border-radius: 8px;
   background: #fff;
