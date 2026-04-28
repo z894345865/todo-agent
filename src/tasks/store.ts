@@ -8,6 +8,7 @@ import {
   getTaskSummary,
   updateTask as updateTaskModel,
 } from './model.ts'
+import { normalizeTaskData } from './localJsonStore.ts'
 import type { FieldDefinition, Tag, Task, TaskSummary, ViewDefinition } from './types.ts'
 
 type Listener = () => void
@@ -57,6 +58,29 @@ function cloneView(view: ViewDefinition): ViewDefinition {
     sorts: view.sorts.map((sort) => ({ ...sort })),
     ...(view.columnWidths ? { columnWidths: { ...view.columnWidths } } : {}),
   }
+}
+
+function normalizeViewUpdate(state: TaskStore, view: ViewDefinition): ViewDefinition {
+  if (!state.views.some((item) => item.id === view.id)) {
+    throw new Error(`No view found with id: "${view.id}"`)
+  }
+
+  const data = normalizeTaskData({
+    version: 1,
+    tasks: state.tasks,
+    tags: state.tags,
+    fields: state.fields,
+    views: state.views.map((item) => (item.id === view.id ? view : item)),
+    ui: {
+      activeViewId: state.activeViewId,
+      ...(state.selectedTaskId ? { selectedTaskId: state.selectedTaskId } : {}),
+    },
+  })
+  const normalized = data.views.find((item) => item.id === view.id)
+  if (!normalized) {
+    throw new Error(`No view found with id: "${view.id}"`)
+  }
+  return cloneView(normalized)
 }
 
 function getErrorMessage(error: unknown): string {
@@ -200,11 +224,18 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       }
     }),
 
-  updateView: (view) =>
-    serializeWrite(async () => {
-      await db.updateViewRecord(cloneView(view))
+  updateView: (view) => {
+    const updated = normalizeViewUpdate(get(), view)
+    set({
+      views: get().views.map((item) => (item.id === updated.id ? cloneView(updated) : item)),
+      error: null,
+    })
+    notifyExternal()
+
+    return serializeWrite(async () => {
+      await db.updateViewRecord(updated)
       const data = await db.getTaskData()
-      const storedView = data.views.find((item) => item.id === view.id)
+      const storedView = data.views.find((item) => item.id === updated.id)
       if (!storedView) {
         throw new Error('view was not saved')
       }
@@ -216,18 +247,29 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       })
       notifyExternal()
       return storedView
-    }),
+    }).catch((error) => {
+      set({ error: getErrorMessage(error) })
+      throw error
+    })
+  },
 
-  setActiveView: (viewId) =>
-    serializeWrite(async () => {
-      const data = await db.getTaskData()
-      const fallbackViewId = data.views.find((view) => view.id === 'grid-default')?.id ?? data.views[0]?.id ?? 'grid-default'
-      const normalizedViewId = viewId.trim() === '' || !data.views.some((view) => view.id === viewId) ? fallbackViewId : viewId
+  setActiveView: (viewId) => {
+    const state = get()
+    const fallbackViewId = state.views.find((view) => view.id === 'grid-default')?.id ?? state.views[0]?.id ?? 'grid-default'
+    const normalizedViewId = viewId.trim() === '' || !state.views.some((view) => view.id === viewId) ? fallbackViewId : viewId
+    set({ activeViewId: normalizedViewId, error: null })
+    notifyExternal()
+
+    return serializeWrite(async () => {
       await db.setActiveViewId(normalizedViewId)
       const nextData = await db.getTaskData()
       set({ activeViewId: nextData.ui.activeViewId, error: null })
       notifyExternal()
-    }),
+    }).catch((error) => {
+      set({ error: getErrorMessage(error) })
+      throw error
+    })
+  },
 
   setSelectedTask: (taskId) =>
     serializeWrite(async () => {

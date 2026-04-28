@@ -78,6 +78,16 @@ test('setActiveView falls back to the first available view when default grid is 
   assert.equal(useTaskStore.getState().activeViewId, 'custom-view')
 })
 
+test('setActiveView updates memory before persistence finishes', async () => {
+  await resetStore({ tasks: [baseTask], views: DEFAULT_VIEWS, ui: { activeViewId: 'grid-default' } })
+
+  const promise = useTaskStore.getState().setActiveView('kanban-status')
+
+  assert.equal(useTaskStore.getState().activeViewId, 'kanban-status')
+  await promise
+  assert.equal(useTaskStore.getState().activeViewId, 'kanban-status')
+})
+
 test('setSelectedTask clears unknown task ids', async () => {
   await resetStore()
 
@@ -115,6 +125,17 @@ test('updateView stores a cloned normalized view result', async () => {
   assert.equal(storedView?.name, 'Updated custom view')
   assert.deepEqual(storedView?.visibleFieldIds, ['title', 'status'])
   assert.equal(storedView?.columnWidths?.title, 420)
+})
+
+test('updateView updates memory before persistence finishes', async () => {
+  await resetStore({ tasks: [baseTask], views: DEFAULT_VIEWS, ui: { activeViewId: 'grid-default' } })
+  const view = useTaskStore.getState().views.find((item) => item.id === 'grid-default')!
+
+  const promise = useTaskStore.getState().updateView({ ...view, name: 'Fast Grid' })
+
+  assert.equal(useTaskStore.getState().views.find((item) => item.id === 'grid-default')?.name, 'Fast Grid')
+  await promise
+  assert.equal(useTaskStore.getState().views.find((item) => item.id === 'grid-default')?.name, 'Fast Grid')
 })
 
 test('createTag rejects empty names and sets store error', async () => {
