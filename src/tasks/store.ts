@@ -234,19 +234,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
     return serializeWrite(async () => {
       await db.updateViewRecord(updated)
-      const data = await db.getTaskData()
-      const storedView = data.views.find((item) => item.id === updated.id)
-      if (!storedView) {
-        throw new Error('view was not saved')
-      }
-
-      set({
-        views: data.views,
-        activeViewId: data.ui.activeViewId,
-        error: null,
-      })
-      notifyExternal()
-      return storedView
+      set({ error: null })
+      return updated
     }).catch((error) => {
       set({ error: getErrorMessage(error) })
       throw error
@@ -262,9 +251,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
     return serializeWrite(async () => {
       await db.setActiveViewId(normalizedViewId)
-      const nextData = await db.getTaskData()
-      set({ activeViewId: nextData.ui.activeViewId, error: null })
-      notifyExternal()
+      set({ error: null })
     }).catch((error) => {
       set({ error: getErrorMessage(error) })
       throw error

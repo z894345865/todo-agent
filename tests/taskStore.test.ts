@@ -27,6 +27,27 @@ const customView: ViewDefinition = {
   },
 }
 
+type Deferred<T> = {
+  promise: Promise<T>
+  resolve: (value: T) => void
+  reject: (error: unknown) => void
+}
+
+function createDeferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void
+  let reject!: (error: unknown) => void
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+  return { promise, resolve, reject }
+}
+
+async function flushMicrotasks(): Promise<void> {
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
 async function resetStore(data = { tasks: [baseTask], views: [customView], ui: { activeViewId: 'custom-view' } }) {
   await __resetTaskDataForTests({
     version: 1,
@@ -88,6 +109,35 @@ test('setActiveView updates memory before persistence finishes', async () => {
   assert.equal(useTaskStore.getState().activeViewId, 'kanban-status')
 })
 
+test('setActiveView keeps newer memory state when older persistence completes', async () => {
+  await resetStore({ tasks: [baseTask], views: DEFAULT_VIEWS, ui: { activeViewId: 'grid-default' } })
+  const originalFetch = globalThis.fetch
+  const writes = [createDeferred<Response>(), createDeferred<Response>()]
+  let writeIndex = 0
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) === '/__task_data' && init?.method === 'PUT') {
+      return writes[writeIndex++].promise
+    }
+    return Promise.resolve(new Response(null, { status: 404 }))
+  }) as typeof fetch
+
+  try {
+    const first = useTaskStore.getState().setActiveView('kanban-status')
+    const second = useTaskStore.getState().setActiveView('calendar-due-date')
+
+    assert.equal(useTaskStore.getState().activeViewId, 'calendar-due-date')
+    writes[0].resolve(new Response(null, { status: 204 }))
+    await flushMicrotasks()
+    assert.equal(useTaskStore.getState().activeViewId, 'calendar-due-date')
+
+    writes[1].resolve(new Response(null, { status: 204 }))
+    await Promise.all([first, second])
+    assert.equal(useTaskStore.getState().activeViewId, 'calendar-due-date')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
 test('setSelectedTask clears unknown task ids', async () => {
   await resetStore()
 
@@ -136,6 +186,36 @@ test('updateView updates memory before persistence finishes', async () => {
   assert.equal(useTaskStore.getState().views.find((item) => item.id === 'grid-default')?.name, 'Fast Grid')
   await promise
   assert.equal(useTaskStore.getState().views.find((item) => item.id === 'grid-default')?.name, 'Fast Grid')
+})
+
+test('updateView keeps newer memory state when older persistence completes', async () => {
+  await resetStore({ tasks: [baseTask], views: DEFAULT_VIEWS, ui: { activeViewId: 'grid-default' } })
+  const originalFetch = globalThis.fetch
+  const writes = [createDeferred<Response>(), createDeferred<Response>()]
+  let writeIndex = 0
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) === '/__task_data' && init?.method === 'PUT') {
+      return writes[writeIndex++].promise
+    }
+    return Promise.resolve(new Response(null, { status: 404 }))
+  }) as typeof fetch
+
+  try {
+    const view = useTaskStore.getState().views.find((item) => item.id === 'grid-default')!
+    const first = useTaskStore.getState().updateView({ ...view, name: 'First Grid' })
+    const second = useTaskStore.getState().updateView({ ...view, name: 'Second Grid' })
+
+    assert.equal(useTaskStore.getState().views.find((item) => item.id === 'grid-default')?.name, 'Second Grid')
+    writes[0].resolve(new Response(null, { status: 204 }))
+    await flushMicrotasks()
+    assert.equal(useTaskStore.getState().views.find((item) => item.id === 'grid-default')?.name, 'Second Grid')
+
+    writes[1].resolve(new Response(null, { status: 204 }))
+    await Promise.all([first, second])
+    assert.equal(useTaskStore.getState().views.find((item) => item.id === 'grid-default')?.name, 'Second Grid')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })
 
 test('createTag rejects empty names and sets store error', async () => {
