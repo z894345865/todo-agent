@@ -68,6 +68,44 @@ test('normalizeTaskData repairs unknown activeViewId to an existing default view
   assert.equal(normalized.ui.activeViewId, 'custom-grid')
 })
 
+test('normalizeTaskData trims view search query strings', () => {
+  const normalized = normalizeTaskData({
+    views: [
+      {
+        id: 'grid-default',
+        name: 'Grid',
+        type: 'grid',
+        visibleFieldIds: ['title'],
+        filters: [],
+        sorts: [],
+        searchQuery: '  ship  ',
+      },
+    ],
+    ui: { activeViewId: 'grid-default' },
+  })
+
+  assert.equal(normalized.views[0].searchQuery, 'ship')
+})
+
+test('normalizeTaskData omits empty view search query strings', () => {
+  const normalized = normalizeTaskData({
+    views: [
+      {
+        id: 'grid-default',
+        name: 'Grid',
+        type: 'grid',
+        visibleFieldIds: ['title'],
+        filters: [],
+        sorts: [],
+        searchQuery: '   ',
+      },
+    ],
+    ui: { activeViewId: 'grid-default' },
+  })
+
+  assert.equal(normalized.views[0].searchQuery, undefined)
+})
+
 test('normalizeTaskData rejects invalid field type', () => {
   assert.throws(
     () =>

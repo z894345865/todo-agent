@@ -8,6 +8,7 @@ import {
   getTaskData,
   setActiveViewId,
   updateTaskRecord,
+  updateViewRecord,
 } from '../src/tasks/db.ts'
 import type { Task } from '../src/tasks/types.ts'
 
@@ -78,6 +79,35 @@ test('task db writes task-shaped data to the dev server endpoint outside Tauri',
   assert.equal(method, 'PUT')
   assert.equal(JSON.parse(body).tasks[0].title, firstTask.title)
   assert.equal(JSON.parse(body).ui.activeViewId, 'grid-default')
+})
+
+test('task db rejects failed dev server writes', async () => {
+  await __resetTaskDataForTests()
+  const originalFetch = globalThis.fetch
+
+  globalThis.fetch = async () => new Response(null, { status: 500 })
+
+  try {
+    await assert.rejects(() => addTaskRecord(firstTask), /failed to write/i)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('task db keeps view order when updating a view', async () => {
+  await __resetTaskDataForTests()
+  const data = await getTaskData()
+  const views = data.views
+  assert.ok(views.length >= 3)
+
+  await updateViewRecord({ ...views[0], name: 'Updated first view' })
+
+  const nextViews = (await getTaskData()).views
+  assert.deepEqual(
+    nextViews.map((view) => view.id),
+    views.map((view) => view.id)
+  )
+  assert.equal(nextViews[0].name, 'Updated first view')
 })
 
 test('task db reads task-shaped data from the dev server endpoint outside Tauri', async () => {

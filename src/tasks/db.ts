@@ -21,16 +21,16 @@ async function readDevTaskDataFile(): Promise<TaskAppData | null> {
   }
 }
 
-async function writeDevTaskDataFile(data: TaskAppData): Promise<boolean> {
+async function writeDevTaskDataFile(data: TaskAppData): Promise<'saved' | 'failed' | 'unavailable'> {
   try {
     const response = await fetch(DEV_DATA_ENDPOINT, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     })
-    return response.ok
+    return response.ok ? 'saved' : 'failed'
   } catch {
-    return false
+    return 'unavailable'
   }
 }
 
@@ -64,7 +64,10 @@ async function saveData(data: TaskAppData): Promise<void> {
   dataPromise = Promise.resolve(memoryData)
 
   if (!isTauri()) {
-    await writeDevTaskDataFile(normalized)
+    const result = await writeDevTaskDataFile(normalized)
+    if (result === 'failed') {
+      throw new Error(`Failed to write ${DEV_DATA_ENDPOINT}`)
+    }
     return
   }
 
@@ -122,8 +125,12 @@ export async function addTagRecord(tag: Tag): Promise<void> {
 
 export async function updateViewRecord(view: ViewDefinition): Promise<void> {
   await updateData((data) => {
-    data.views = data.views.filter((item) => item.id !== view.id)
-    data.views.push(view)
+    const index = data.views.findIndex((item) => item.id === view.id)
+    if (index === -1) {
+      data.views.push(view)
+      return
+    }
+    data.views[index] = view
   })
 }
 

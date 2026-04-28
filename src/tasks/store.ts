@@ -8,6 +8,7 @@ import {
   getTaskSummary,
   updateTask as updateTaskModel,
 } from './model.ts'
+import { normalizeTaskData } from './localJsonStore.ts'
 import type { FieldDefinition, Tag, Task, TaskSummary, ViewDefinition } from './types.ts'
 
 type Listener = () => void
@@ -24,6 +25,7 @@ let writeQueue = Promise.resolve()
 let preparedTasksCache:
   | {
       tasks: Task[]
+      tags: Tag[]
       view: ViewDefinition | undefined
       viewId: string | undefined
       result: Task[]
@@ -59,6 +61,52 @@ function cloneView(view: ViewDefinition): ViewDefinition {
   }
 }
 
+function applySearch(tasks: Task[], query: string | undefined, tags: Tag[]): Task[] {
+  const normalizedQuery = query?.trim().toLocaleLowerCase()
+  if (!normalizedQuery) {
+    return tasks
+  }
+
+  const tagNamesById = new Map(tags.map((tag) => [tag.id, tag.name]))
+
+  return tasks.filter((task) => {
+    const tagNames = task.tagIds.map((tagId) => tagNamesById.get(tagId)).filter(Boolean)
+    return [task.title, task.description, task.status, task.priority, task.dueDate, ...tagNames]
+      .filter(Boolean)
+      .join(' ')
+      .toLocaleLowerCase()
+      .includes(normalizedQuery)
+  })
+}
+
+function normalizeViewUpdate(state: TaskStore, view: ViewDefinition): ViewDefinition {
+  if (!state.views.some((item) => item.id === view.id)) {
+    throw new Error(`No view found with id: "${view.id}"`)
+  }
+
+  const data = normalizeTaskData({
+    version: 1,
+    tasks: state.tasks,
+    tags: state.tags,
+    fields: state.fields,
+    views: state.views.map((item) => (item.id === view.id ? view : item)),
+    ui: {
+      activeViewId: state.activeViewId,
+      ...(state.selectedTaskId ? { selectedTaskId: state.selectedTaskId } : {}),
+    },
+  })
+  const normalized = data.views.find((item) => item.id === view.id)
+  if (!normalized) {
+    throw new Error(`No view found with id: "${view.id}"`)
+  }
+  return cloneView(normalized)
+}
+
+function normalizeSearchQuery(query: string): string | undefined {
+  const normalized = query.trim()
+  return normalized ? normalized : undefined
+}
+
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
@@ -78,6 +126,7 @@ export interface TaskStore {
   deleteTask: (id: string) => Promise<void>
   completeTask: (id: string) => Promise<Task | undefined>
   createTag: (name: string) => Promise<Tag>
+  setViewSearchQuery: (viewId: string, query: string) => void
   updateView: (view: ViewDefinition) => Promise<ViewDefinition>
   setActiveView: (viewId: string) => Promise<void>
   setSelectedTask: (taskId: string | undefined) => Promise<void>
@@ -200,34 +249,64 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       }
     }),
 
-  updateView: (view) =>
-    serializeWrite(async () => {
-      await db.updateViewRecord(cloneView(view))
-      const data = await db.getTaskData()
-      const storedView = data.views.find((item) => item.id === view.id)
-      if (!storedView) {
-        throw new Error('view was not saved')
-      }
+  setViewSearchQuery: (viewId, query) => {
+    const normalizedQuery = normalizeSearchQuery(query)
+    const hasView = get().views.some((view) => view.id === viewId)
+    if (!hasView) {
+      return
+    }
 
-      set({
-        views: data.views,
-        activeViewId: data.ui.activeViewId,
-        error: null,
-      })
-      notifyExternal()
-      return storedView
-    }),
+    set({
+      views: get().views.map((view) => {
+        if (view.id !== viewId) {
+          return view
+        }
+        const next = cloneView(view)
+        if (normalizedQuery) {
+          next.searchQuery = normalizedQuery
+        } else {
+          delete next.searchQuery
+        }
+        return next
+      }),
+      error: null,
+    })
+    notifyExternal()
+  },
 
-  setActiveView: (viewId) =>
-    serializeWrite(async () => {
-      const data = await db.getTaskData()
-      const fallbackViewId = data.views.find((view) => view.id === 'grid-default')?.id ?? data.views[0]?.id ?? 'grid-default'
-      const normalizedViewId = viewId.trim() === '' || !data.views.some((view) => view.id === viewId) ? fallbackViewId : viewId
+  updateView: (view) => {
+    const updated = normalizeViewUpdate(get(), view)
+    set({
+      views: get().views.map((item) => (item.id === updated.id ? cloneView(updated) : item)),
+      error: null,
+    })
+    notifyExternal()
+
+    return serializeWrite(async () => {
+      await db.updateViewRecord(updated)
+      set({ error: null })
+      return updated
+    }).catch((error) => {
+      set({ error: getErrorMessage(error) })
+      throw error
+    })
+  },
+
+  setActiveView: (viewId) => {
+    const state = get()
+    const fallbackViewId = state.views.find((view) => view.id === 'grid-default')?.id ?? state.views[0]?.id ?? 'grid-default'
+    const normalizedViewId = viewId.trim() === '' || !state.views.some((view) => view.id === viewId) ? fallbackViewId : viewId
+    set({ activeViewId: normalizedViewId, error: null })
+    notifyExternal()
+
+    return serializeWrite(async () => {
       await db.setActiveViewId(normalizedViewId)
-      const nextData = await db.getTaskData()
-      set({ activeViewId: nextData.ui.activeViewId, error: null })
-      notifyExternal()
-    }),
+      set({ error: null })
+    }).catch((error) => {
+      set({ error: getErrorMessage(error) })
+      throw error
+    })
+  },
 
   setSelectedTask: (taskId) =>
     serializeWrite(async () => {
@@ -248,15 +327,17 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
     if (
       preparedTasksCache?.tasks === state.tasks &&
+      preparedTasksCache.tags === state.tags &&
       preparedTasksCache.view === view &&
       preparedTasksCache.viewId === viewId
     ) {
       return preparedTasksCache.result
     }
 
-    const result = applySorts(applyFilters(state.tasks, view.filters), view.sorts)
+    const result = applySorts(applySearch(applyFilters(state.tasks, view.filters), view.searchQuery, state.tags), view.sorts)
     preparedTasksCache = {
       tasks: state.tasks,
+      tags: state.tags,
       view,
       viewId,
       result,

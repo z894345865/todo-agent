@@ -157,9 +157,19 @@ function normalizeView(value: unknown): ViewDefinition {
     visibleFieldIds: stringArrayField(value, 'visibleFieldIds'),
     filters: normalizeFilterRules(value.filters),
     sorts: normalizeSortRules(value.sorts),
+    ...normalizeSearchQuery(value.searchQuery),
     ...(typeof value.groupBy === 'string' ? { groupBy: value.groupBy } : {}),
     ...(value.columnWidths !== undefined ? { columnWidths: normalizeColumnWidths(value.columnWidths) } : {}),
   }
+}
+
+function normalizeSearchQuery(value: unknown): Pick<ViewDefinition, 'searchQuery'> {
+  if (typeof value !== 'string') {
+    return {}
+  }
+
+  const searchQuery = value.trim()
+  return searchQuery ? { searchQuery } : {}
 }
 
 function normalizeFieldType(value: unknown): FieldType {
