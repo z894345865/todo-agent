@@ -25,22 +25,14 @@ export function TaskDetailPanel() {
   const tasks = useTaskStore((state) => state.tasks)
   const tags = useTaskStore((state) => state.tags)
   const updateTask = useTaskStore((state) => state.updateTask)
-  const createTag = useTaskStore((state) => state.createTag)
   const setSelectedTask = useTaskStore((state) => state.setSelectedTask)
   const [titleText, setTitleText] = useState('')
   const [descriptionText, setDescriptionText] = useState('')
-  const [tagText, setTagText] = useState('')
-  const [tagError, setTagError] = useState<string>()
   const titleComposing = useRef(false)
   const descriptionComposing = useRef(false)
 
   const task = tasks.find((item) => item.id === selectedTaskId)
   const taskTags = useMemo(() => tags.filter((tag) => task?.tagIds.includes(tag.id)), [tags, task])
-
-  useEffect(() => {
-    setTagText(taskTags.map((tag) => tag.name).join(', '))
-    setTagError(undefined)
-  }, [task?.id, taskTags])
 
   useEffect(() => {
     setTitleText(task?.title ?? '')
@@ -64,23 +56,6 @@ export function TaskDetailPanel() {
     const description = toOptionalTextValue(value)
     if (description !== task.description) {
       void updateTask(task.id, { description }).catch(console.error)
-    }
-  }
-
-  const saveTags = async () => {
-    const names = parseTagNames(tagText)
-    try {
-      const name = names[0]
-      const nextTag = name
-        ? useTaskStore.getState().tags.find((tag) => tag.name.toLocaleLowerCase() === name.toLocaleLowerCase()) ?? (await createTag(name))
-        : undefined
-
-      await updateTask(task.id, { tagIds: nextTag ? [nextTag.id] : [] })
-      setTagText(nextTag?.name ?? '')
-      setTagError(undefined)
-    } catch (error) {
-      console.error(error)
-      setTagError('标签保存失败，请重试。')
     }
   }
 
@@ -185,26 +160,18 @@ export function TaskDetailPanel() {
 
       <label className="task-field">
         <span>标签</span>
-        <input
-          aria-describedby={tagError ? 'task-detail-tag-error' : undefined}
-          onBlur={() => void saveTags()}
-          onChange={(event) => setTagText(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.currentTarget.blur()
-            }
-          }}
-          placeholder="选择或输入一个标签"
-          type="text"
-          value={tagText}
-        />
+        <select
+          onChange={(event) => void updateTask(task.id, { tagIds: event.target.value ? [event.target.value] : [] }).catch(console.error)}
+          value={task.tagIds[0] ?? ''}
+        >
+          <option value="">无标签</option>
+          {tags.map((tag) => (
+            <option key={tag.id} value={tag.id}>
+              {tag.name}
+            </option>
+          ))}
+        </select>
       </label>
-
-      {tagError && (
-        <div className="task-detail-panel__tag-error" id="task-detail-tag-error" role="alert">
-          {tagError}
-        </div>
-      )}
 
       <div className="task-detail-panel__tags" aria-label="当前标签">
         {taskTags.length > 0 ? (
@@ -219,20 +186,4 @@ export function TaskDetailPanel() {
       </div>
     </aside>
   )
-}
-
-function parseTagNames(value: string): string[] {
-  const seen = new Set<string>()
-  const names: string[] = []
-
-  for (const rawName of value.split(',')) {
-    const name = rawName.trim()
-    const key = name.toLocaleLowerCase()
-    if (name && !seen.has(key)) {
-      seen.add(key)
-      names.push(name)
-    }
-  }
-
-  return names.slice(0, 1)
 }

@@ -1,9 +1,9 @@
-import { useCallback, useMemo } from 'react'
-import DataEditor, { GridCellKind, type DrawCellCallback, type EditableGridCell, type GridCell, type GridColumn, type Item, type Rectangle } from '@glideapps/glide-data-grid'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import DataEditor, { GridCellKind, type DataEditorRef, type DrawCellCallback, type EditableGridCell, type GridCell, type GridColumn, type Item, type Rectangle } from '@glideapps/glide-data-grid'
 import '@glideapps/glide-data-grid/dist/index.css'
-import { getFieldLabel } from '../../tasks/displayLabels.ts'
+import { PRIORITY_LABELS, STATUS_LABELS, getFieldLabel } from '../../tasks/displayLabels.ts'
 import { useTaskStore } from '../../tasks/store.ts'
-import type { ViewDefinition } from '../../tasks/types.ts'
+import type { FieldDefinition, Task, TaskPriority, TaskStatus, ViewDefinition } from '../../tasks/types.ts'
 import { cellToTaskUpdate, getTaskFieldPills, parseItem, taskFieldToGridCell, type GridPill } from './cellRenderers.tsx'
 import { createGridRows, type GridRow } from './gridGrouping.ts'
 import { isTaskOverdue } from './taskDates.ts'
@@ -20,6 +20,14 @@ interface TaskGridViewProps {
   view: ViewDefinition
 }
 
+type SelectFieldId = 'status' | 'priority' | 'tagIds'
+
+interface SelectEditorState {
+  task: Task
+  field: FieldDefinition & { id: SelectFieldId }
+  rect: Rectangle
+}
+
 export function TaskGridView({ view }: TaskGridViewProps) {
   const fields = useTaskStore((state) => state.fields)
   const tags = useTaskStore((state) => state.tags)
@@ -28,6 +36,8 @@ export function TaskGridView({ view }: TaskGridViewProps) {
   const updateTask = useTaskStore((state) => state.updateTask)
   const updateView = useTaskStore((state) => state.updateView)
   const setSelectedTask = useTaskStore((state) => state.setSelectedTask)
+  const gridRef = useRef<DataEditorRef>(null)
+  const [selectEditor, setSelectEditor] = useState<SelectEditorState>()
 
   const visibleFields = useMemo(
     () => view.visibleFieldIds.map((fieldId) => fields.find((field) => field.id === fieldId)).filter((field) => field !== undefined),
@@ -100,6 +110,26 @@ export function TaskGridView({ view }: TaskGridViewProps) {
     [gridRows, setSelectedTask]
   )
 
+  const handleCellActivated = useCallback(
+    (item: Item) => {
+      const { columnIndex, rowIndex } = parseItem(item)
+      const row = gridRows[rowIndex]
+      const field = visibleFields[columnIndex]
+      if (row?.kind !== 'task' || !isSelectField(field)) {
+        setSelectEditor(undefined)
+        return
+      }
+
+      const rect = gridRef.current?.getBounds(columnIndex, rowIndex)
+      if (!rect) {
+        return
+      }
+
+      setSelectEditor({ task: row.task, field, rect })
+    },
+    [gridRows, visibleFields]
+  )
+
   const drawCell = useCallback<DrawCellCallback>(
     (args, drawContent) => {
       const row = gridRows[args.row]
@@ -152,26 +182,106 @@ export function TaskGridView({ view }: TaskGridViewProps) {
   }, [createTask])
 
   return (
-    <DataEditor
-      className="task-grid-view"
-      columns={columns}
-      rows={gridRows.length}
-      getCellContent={getCellContent}
-      getCellsForSelection
-      drawCell={drawCell}
-      onCellClicked={handleCellClicked}
-      onCellEdited={handleCellEdited}
-      onColumnResizeEnd={handleColumnResize}
-      onRowAppended={handleRowAppended}
-      rowHeight={(row) => (gridRows[row]?.kind === 'group' ? GROUP_ROW_HEIGHT : DEFAULT_ROW_HEIGHT)}
-      rowMarkers={hasGroupedRows ? 'none' : 'number'}
-      smoothScrollX
-      smoothScrollY
-      trailingRowOptions={{ hint: '新任务', sticky: true }}
-      width="100%"
-      height="100%"
-    />
+    <div className="task-grid-view">
+      <DataEditor
+        ref={gridRef}
+        columns={columns}
+        rows={gridRows.length}
+        getCellContent={getCellContent}
+        getCellsForSelection
+        drawCell={drawCell}
+        onCellActivated={handleCellActivated}
+        onCellClicked={handleCellClicked}
+        onCellEdited={handleCellEdited}
+        onColumnResizeEnd={handleColumnResize}
+        onRowAppended={handleRowAppended}
+        rowHeight={(row) => (gridRows[row]?.kind === 'group' ? GROUP_ROW_HEIGHT : DEFAULT_ROW_HEIGHT)}
+        rowMarkers={hasGroupedRows ? 'none' : 'number'}
+        smoothScrollX
+        smoothScrollY
+        trailingRowOptions={{ hint: '新任务', sticky: true }}
+        width="100%"
+        height="100%"
+      />
+      {selectEditor && (
+        <GridSelectEditor
+          editor={selectEditor}
+          onClose={() => setSelectEditor(undefined)}
+          onUpdate={(updates) => void updateTask(selectEditor.task.id, updates).then(() => setSelectEditor(undefined)).catch(console.error)}
+          tags={tags}
+        />
+      )}
+    </div>
   )
+}
+
+function GridSelectEditor({
+  editor,
+  onClose,
+  onUpdate,
+  tags,
+}: {
+  editor: SelectEditorState
+  onClose: () => void
+  onUpdate: (updates: Partial<Pick<Task, 'status' | 'priority' | 'tagIds'>>) => void
+  tags: Array<{ id: string; name: string }>
+}) {
+  const value = getSelectFieldValue(editor.task, editor.field.id)
+  const options = getSelectOptions(editor.field.id, tags)
+
+  return (
+    <select
+      aria-label={`选择${getFieldLabel(editor.field)}`}
+      autoFocus
+      className="task-grid-select-editor"
+      onBlur={onClose}
+      onChange={(event) => onUpdate(createSelectFieldUpdate(editor.field.id, event.target.value))}
+      style={{
+        left: editor.rect.x,
+        top: editor.rect.y,
+        width: Math.max(editor.rect.width, 120),
+        height: editor.rect.height,
+      }}
+      value={value}
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+function isSelectField(field: FieldDefinition | undefined): field is FieldDefinition & { id: SelectFieldId } {
+  return field?.id === 'status' || field?.id === 'priority' || field?.id === 'tagIds'
+}
+
+function getSelectFieldValue(task: Task, fieldId: SelectFieldId): string {
+  if (fieldId === 'tagIds') {
+    return task.tagIds[0] ?? ''
+  }
+  return task[fieldId]
+}
+
+function getSelectOptions(fieldId: SelectFieldId, tags: Array<{ id: string; name: string }>): Array<{ value: string; label: string }> {
+  if (fieldId === 'status') {
+    return (Object.keys(STATUS_LABELS) as TaskStatus[]).map((status) => ({ value: status, label: STATUS_LABELS[status] }))
+  }
+  if (fieldId === 'priority') {
+    return (Object.keys(PRIORITY_LABELS) as TaskPriority[]).map((priority) => ({ value: priority, label: PRIORITY_LABELS[priority] }))
+  }
+  return [{ value: '', label: '无标签' }, ...tags.map((tag) => ({ value: tag.id, label: tag.name }))]
+}
+
+function createSelectFieldUpdate(fieldId: SelectFieldId, value: string): Partial<Pick<Task, 'status' | 'priority' | 'tagIds'>> {
+  if (fieldId === 'status') {
+    return { status: value as TaskStatus }
+  }
+  if (fieldId === 'priority') {
+    return { priority: value as TaskPriority }
+  }
+  return { tagIds: value ? [value] : [] }
 }
 
 function createGroupCell(row: Extract<GridRow, { kind: 'group' }>, columnCount: number): GridCell {
