@@ -3,9 +3,11 @@ import react from '@vitejs/plugin-react'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { dirname, resolve } from 'node:path'
+import { createAuthController } from './server/auth.ts'
 
 const devDataFile = resolve('.local-data', 'todo-data.json')
 const taskDevDataFile = resolve('.local-data', 'task-data.json')
+const authDataFile = resolve('.local-data', 'auth-data.json')
 
 async function handleJsonFileEndpoint(
   req: IncomingMessage,
@@ -46,10 +48,26 @@ export default defineConfig({
     {
       name: 'todo-dev-file-storage',
       configureServer(server) {
+        const auth = createAuthController(authDataFile)
+
+        server.middlewares.use('/__auth/status', async (req, res) => {
+          await auth.handleStatus(req, res)
+        })
+        server.middlewares.use('/__auth/setup', async (req, res) => {
+          await auth.handleSetup(req, res)
+        })
+        server.middlewares.use('/__auth/login', async (req, res) => {
+          await auth.handleLogin(req, res)
+        })
+        server.middlewares.use('/__auth/logout', async (req, res) => {
+          await auth.handleLogout(req, res)
+        })
         server.middlewares.use('/__todo_data', async (req, res) => {
+          if (!(await auth.requireAuth(req, res))) return
           await handleJsonFileEndpoint(req, res, devDataFile, { version: 1, todos: [], tags: [], todoTags: [], ui: { filters: {} } })
         })
         server.middlewares.use('/__task_data', async (req, res) => {
+          if (!(await auth.requireAuth(req, res))) return
           await handleJsonFileEndpoint(req, res, taskDevDataFile, { version: 1, tasks: [], tags: [], ui: { activeViewId: 'grid-default' } })
         })
       },

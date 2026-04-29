@@ -1,5 +1,6 @@
 import { isTauri } from '@tauri-apps/api/core'
 import { BaseDirectory, exists, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
+import { getAuthHeaders } from '../auth/client.ts'
 import { normalizeTask } from './model.ts'
 import type { Tag, Task, TaskAppData, ViewDefinition } from './types.ts'
 import { createEmptyTaskData, normalizeTaskData } from './localJsonStore.ts'
@@ -13,7 +14,7 @@ let writeQueue = Promise.resolve()
 
 async function readDevTaskDataFile(): Promise<TaskAppData | null> {
   try {
-    const response = await fetch(DEV_DATA_ENDPOINT, { headers: { Accept: 'application/json' } })
+    const response = await fetch(DEV_DATA_ENDPOINT, { headers: { Accept: 'application/json', ...getAuthHeaders() } })
     if (!response.ok) return null
     return normalizeTaskData(await response.json())
   } catch {
@@ -25,7 +26,7 @@ async function writeDevTaskDataFile(data: TaskAppData): Promise<'saved' | 'faile
   try {
     const response = await fetch(DEV_DATA_ENDPOINT, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data),
     })
     return response.ok ? 'saved' : 'failed'
