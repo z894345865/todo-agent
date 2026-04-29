@@ -46,8 +46,32 @@ test('normalizeTaskData keeps valid tasks and fills missing tags and default UI'
   assert.deepEqual(normalized.tasks[0].tagIds, [])
   assert.deepEqual(normalized.tags, [])
   assert.ok(normalized.fields.some((field) => field.id === 'status'))
+  assert.ok(normalized.fields.some((field) => field.id === 'updatedAt' && field.readOnly))
   assert.deepEqual(normalized.views.map((view) => view.type), ['grid', 'kanban', 'calendar'])
   assert.equal(normalized.ui.activeViewId, 'grid-default')
+})
+
+test('normalizeTaskData adds updatedAt to existing default grid views', () => {
+  const normalized = normalizeTaskData({
+    fields: [
+      { id: 'title', name: 'Task', type: 'text' },
+      { id: 'createdAt', name: 'Created', type: 'date', readOnly: true },
+    ],
+    views: [
+      {
+        id: 'grid-default',
+        name: 'Grid',
+        type: 'grid',
+        visibleFieldIds: ['title', 'createdAt'],
+        filters: [],
+        sorts: [],
+      },
+    ],
+    ui: { activeViewId: 'grid-default' },
+  })
+
+  assert.ok(normalized.fields.some((field) => field.id === 'updatedAt' && field.readOnly))
+  assert.deepEqual(normalized.views[0].visibleFieldIds, ['title', 'createdAt', 'updatedAt'])
 })
 
 test('normalizeTaskData repairs unknown activeViewId to an existing default view', () => {

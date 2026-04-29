@@ -28,6 +28,7 @@ export const DEFAULT_FIELDS: FieldDefinition[] = [
   { id: 'completedAt', name: FIELD_LABELS.completedAt, type: 'date', readOnly: true },
   { id: 'description', name: FIELD_LABELS.description, type: 'longText' },
   { id: 'createdAt', name: FIELD_LABELS.createdAt, type: 'date', readOnly: true },
+  { id: 'updatedAt', name: FIELD_LABELS.updatedAt, type: 'date', readOnly: true },
 ]
 
 export const DEFAULT_VIEWS: ViewDefinition[] = [
@@ -35,10 +36,10 @@ export const DEFAULT_VIEWS: ViewDefinition[] = [
     id: 'grid-default',
     name: '表格',
     type: 'grid',
-    visibleFieldIds: ['title', 'status', 'priority', 'tagIds', 'dueDate', 'description', 'createdAt'],
+    visibleFieldIds: ['title', 'status', 'priority', 'tagIds', 'dueDate', 'description', 'createdAt', 'updatedAt'],
     filters: [{ fieldId: 'status', operator: 'isNot', value: 'done' }],
     sorts: [{ fieldId: 'createdAt', direction: 'desc' }],
-    columnWidths: { title: 260, status: 120, priority: 100, tagIds: 180, dueDate: 120, description: 260, createdAt: 140 },
+    columnWidths: { title: 260, status: 120, priority: 100, tagIds: 180, dueDate: 120, description: 260, createdAt: 140, updatedAt: 140 },
   },
   {
     id: 'kanban-status',

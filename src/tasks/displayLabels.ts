@@ -23,6 +23,7 @@ export const FIELD_LABELS: Record<string, string> = {
   completedAt: '完成日期',
   description: '描述',
   createdAt: '创建时间',
+  updatedAt: '修改时间',
 }
 
 export const VIEW_TYPE_LABELS: Record<ViewType, string> = {

@@ -71,7 +71,10 @@ function normalizeFields(value: unknown): FieldDefinition[] {
     throw new Error('fields must be an array')
   }
 
-  return value.map((field) => normalizeField(field))
+  const fields = value.map((field) => normalizeField(field))
+  const existingIds = new Set(fields.map((field) => String(field.id)))
+  const missingDefaultFields = DEFAULT_FIELDS.filter((field) => !existingIds.has(String(field.id)))
+  return [...fields, ...cloneFields(missingDefaultFields)]
 }
 
 function normalizeViews(value: unknown): ViewDefinition[] {
@@ -150,17 +153,28 @@ function normalizeView(value: unknown): ViewDefinition {
 
   const type = normalizeViewType(value.type)
 
+  const visibleFieldIds = stringArrayField(value, 'visibleFieldIds')
+
   return {
     id: value.id,
     name: value.name,
     type,
-    visibleFieldIds: stringArrayField(value, 'visibleFieldIds'),
+    visibleFieldIds: normalizeVisibleFieldIds(value.id, visibleFieldIds),
     filters: normalizeFilterRules(value.filters),
     sorts: normalizeSortRules(value.sorts),
     ...normalizeSearchQuery(value.searchQuery),
     ...(typeof value.groupBy === 'string' ? { groupBy: value.groupBy } : {}),
     ...(value.columnWidths !== undefined ? { columnWidths: normalizeColumnWidths(value.columnWidths) } : {}),
   }
+}
+
+function normalizeVisibleFieldIds(viewId: unknown, visibleFieldIds: string[]): string[] {
+  if (viewId !== 'grid-default' || visibleFieldIds.includes('updatedAt') || !visibleFieldIds.includes('createdAt')) {
+    return visibleFieldIds
+  }
+
+  const createdAtIndex = visibleFieldIds.indexOf('createdAt')
+  return [...visibleFieldIds.slice(0, createdAtIndex + 1), 'updatedAt', ...visibleFieldIds.slice(createdAtIndex + 1)]
 }
 
 function normalizeSearchQuery(value: unknown): Pick<ViewDefinition, 'searchQuery'> {
