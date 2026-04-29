@@ -123,6 +123,16 @@ export async function addTagRecord(tag: Tag): Promise<void> {
   })
 }
 
+export async function deleteTagRecord(id: string): Promise<void> {
+  await updateData((data) => {
+    data.tags = data.tags.filter((tag) => tag.id !== id)
+    data.tasks = data.tasks.map((task) => ({
+      ...task,
+      tagIds: task.tagIds.filter((tagId) => tagId !== id),
+    }))
+  })
+}
+
 export async function updateViewRecord(view: ViewDefinition): Promise<void> {
   await updateData((data) => {
     const index = data.views.findIndex((item) => item.id === view.id)

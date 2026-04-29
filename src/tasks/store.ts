@@ -126,6 +126,7 @@ export interface TaskStore {
   deleteTask: (id: string) => Promise<void>
   completeTask: (id: string) => Promise<Task | undefined>
   createTag: (name: string) => Promise<Tag>
+  deleteTag: (id: string) => Promise<void>
   setViewSearchQuery: (viewId: string, query: string) => void
   updateView: (view: ViewDefinition) => Promise<ViewDefinition>
   setActiveView: (viewId: string) => Promise<void>
@@ -247,6 +248,18 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         set({ error: getErrorMessage(error) })
         throw error
       }
+    }),
+
+  deleteTag: (id) =>
+    serializeWrite(async () => {
+      await db.deleteTagRecord(id)
+      const data = await db.getTaskData()
+      set({
+        tasks: data.tasks,
+        tags: data.tags,
+        error: null,
+      })
+      notifyExternal()
     }),
 
   setViewSearchQuery: (viewId, query) => {

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import {
   __resetTaskDataForTests,
   addTaskRecord,
+  addTagRecord,
+  deleteTagRecord,
   deleteTaskRecord,
   getAllTaskRecords,
   getTaskData,
@@ -45,6 +47,19 @@ test('task db returns cloned task records', async () => {
   records[0].tagIds.push('tag-1')
 
   assert.deepEqual(await getAllTaskRecords(), [firstTask])
+})
+
+test('task db deletes tags and removes task tag references', async () => {
+  await __resetTaskDataForTests()
+
+  await addTagRecord({ id: 'tag-1', name: 'Project', color: '#2563eb' })
+  await addTaskRecord({ ...firstTask, tagIds: ['tag-1'] })
+
+  await deleteTagRecord('tag-1')
+
+  const data = await getTaskData()
+  assert.deepEqual(data.tags, [])
+  assert.deepEqual(data.tasks[0].tagIds, [])
 })
 
 test('task db exposes normalized cache immediately after saving', async () => {

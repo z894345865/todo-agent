@@ -321,6 +321,20 @@ test('createTag rejects empty names and sets store error', async () => {
   assert.match(useTaskStore.getState().error ?? '', /tag name is required/i)
 })
 
+test('deleteTag removes the tag and clears it from tasks', async () => {
+  await resetStore({
+    tasks: [{ ...baseTask, tagIds: ['tag-1'] }],
+    tags: [{ id: 'tag-1', name: 'Project', color: '#2563eb' }],
+    views: [customView],
+    ui: { activeViewId: 'custom-view' },
+  })
+
+  await useTaskStore.getState().deleteTag('tag-1')
+
+  assert.deepEqual(useTaskStore.getState().tags, [])
+  assert.deepEqual(useTaskStore.getState().tasks[0].tagIds, [])
+})
+
 test('throwing external listeners do not block later listeners or reject successful mutations', async () => {
   await resetStore()
   let secondListenerCalled = false

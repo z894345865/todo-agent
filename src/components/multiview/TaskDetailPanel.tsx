@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { PRIORITY_LABELS, STATUS_LABELS } from '../../tasks/displayLabels.ts'
 import { useTaskStore } from '../../tasks/store.ts'
-import type { TaskPriority, TaskStatus } from '../../tasks/types.ts'
+import type { Tag, TaskPriority, TaskStatus } from '../../tasks/types.ts'
 import { isTaskOverdue } from './taskDates.ts'
 import { PRIORITY_VISUALS, STATUS_VISUALS, tagTokenStyle, tokenStyle } from './taskVisuals.ts'
 import { shouldCommitTextInputChange, toOptionalTextValue } from './textInputDraft.ts'
@@ -25,9 +25,12 @@ export function TaskDetailPanel() {
   const tasks = useTaskStore((state) => state.tasks)
   const tags = useTaskStore((state) => state.tags)
   const updateTask = useTaskStore((state) => state.updateTask)
+  const createTag = useTaskStore((state) => state.createTag)
+  const deleteTag = useTaskStore((state) => state.deleteTag)
   const setSelectedTask = useTaskStore((state) => state.setSelectedTask)
   const [titleText, setTitleText] = useState('')
   const [descriptionText, setDescriptionText] = useState('')
+  const [tagManagerOpen, setTagManagerOpen] = useState(false)
   const titleComposing = useRef(false)
   const descriptionComposing = useRef(false)
 
@@ -158,9 +161,15 @@ export function TaskDetailPanel() {
         />
       </label>
 
-      <label className="task-field">
-        <span>标签</span>
+      <div className="task-field">
+        <div className="task-field__heading">
+          <span>标签</span>
+          <button className="task-field__text-button" onClick={() => setTagManagerOpen(true)} type="button">
+            管理
+          </button>
+        </div>
         <select
+          aria-label="标签"
           onChange={(event) => void updateTask(task.id, { tagIds: event.target.value ? [event.target.value] : [] }).catch(console.error)}
           value={task.tagIds[0] ?? ''}
         >
@@ -171,7 +180,7 @@ export function TaskDetailPanel() {
             </option>
           ))}
         </select>
-      </label>
+      </div>
 
       <div className="task-detail-panel__tags" aria-label="当前标签">
         {taskTags.length > 0 ? (
@@ -184,6 +193,114 @@ export function TaskDetailPanel() {
           <span className="task-detail-panel__empty">暂无标签</span>
         )}
       </div>
+      {tagManagerOpen && <TaskTagManagerDialog onClose={() => setTagManagerOpen(false)} onCreateTag={createTag} onDeleteTag={deleteTag} tags={tags} />}
     </aside>
+  )
+}
+
+function TaskTagManagerDialog({
+  onClose,
+  onCreateTag,
+  onDeleteTag,
+  tags,
+}: {
+  onClose: () => void
+  onCreateTag: (name: string) => Promise<Tag>
+  onDeleteTag: (id: string) => Promise<void>
+  tags: Tag[]
+}) {
+  const [name, setName] = useState('')
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string>()
+  const [error, setError] = useState<string>()
+
+  const create = async () => {
+    const normalized = name.trim()
+    if (!normalized) {
+      setError('请输入标签名称。')
+      return
+    }
+
+    try {
+      await onCreateTag(normalized)
+      setName('')
+      setError(undefined)
+    } catch {
+      setError('标签创建失败，请重试。')
+    }
+  }
+
+  const remove = async (tag: Tag) => {
+    try {
+      await onDeleteTag(tag.id)
+      setDeleteConfirmId(undefined)
+      setError(undefined)
+    } catch {
+      setError('标签删除失败，请重试。')
+    }
+  }
+
+  return (
+    <div className="task-dialog-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="task-dialog task-tag-manager" aria-label="管理标签" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+        <header>
+          <h2>管理标签</h2>
+          <button aria-label="关闭" type="button" onClick={onClose}>
+            x
+          </button>
+        </header>
+
+        <div className="task-tag-manager__create">
+          <input
+            aria-label="新标签名称"
+            onChange={(event) => setName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                void create()
+              }
+            }}
+            placeholder="新标签名称"
+            type="text"
+            value={name}
+          />
+          <button type="button" onClick={() => void create()}>
+            创建
+          </button>
+        </div>
+
+        {error && (
+          <div className="task-tag-manager__error" role="alert">
+            {error}
+          </div>
+        )}
+
+        <div className="task-tag-manager__list">
+          {tags.length === 0 ? (
+            <span className="task-detail-panel__empty">暂无标签</span>
+          ) : (
+            tags.map((tag) => (
+              <div className="task-tag-manager__row" key={tag.id}>
+                <span className="task-tag-manager__color" style={{ background: tag.color }} />
+                <span>{tag.name}</span>
+                {deleteConfirmId === tag.id ? (
+                  <span className="task-tag-manager__confirm">
+                    <span>确认删除?</span>
+                    <button type="button" onClick={() => void remove(tag)}>
+                      删除
+                    </button>
+                    <button type="button" onClick={() => setDeleteConfirmId(undefined)}>
+                      取消
+                    </button>
+                  </span>
+                ) : (
+                  <button className="task-tag-manager__delete" type="button" onClick={() => setDeleteConfirmId(tag.id)}>
+                    删除
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+    </div>
   )
 }

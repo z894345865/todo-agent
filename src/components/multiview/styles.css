@@ -819,6 +819,29 @@
   font-weight: 500;
 }
 
+.task-field__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.task-field__text-button {
+  height: 24px;
+  border: 0;
+  background: transparent;
+  color: #2563eb;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 2px;
+}
+
+.task-field__text-button:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
 .task-field input,
 .task-field select,
 .task-field textarea {
@@ -881,6 +904,104 @@
   background: #fef2f2;
   color: #b91c1c;
   font-size: 12px;
+}
+
+.task-tag-manager {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.task-tag-manager__create {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.task-tag-manager__create input {
+  min-width: 0;
+  height: 34px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+
+.task-tag-manager__create button,
+.task-tag-manager__row button {
+  height: 34px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #1f2937;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0 10px;
+}
+
+.task-tag-manager__create button {
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #fff;
+}
+
+.task-tag-manager__list {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.task-tag-manager__row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f8fafc;
+  padding: 6px 8px;
+}
+
+.task-tag-manager__row > span:nth-child(2) {
+  overflow: hidden;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-tag-manager__color {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+}
+
+.task-tag-manager__delete {
+  color: #b91c1c !important;
+}
+
+.task-tag-manager__confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #7f1d1d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.task-tag-manager__confirm button:first-of-type {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.task-tag-manager__error {
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 12px;
+  padding: 7px 8px;
 }
 
 @media (max-width: 860px) {
