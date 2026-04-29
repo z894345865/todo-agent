@@ -11,7 +11,7 @@ interface TaskFilterDialogProps {
   view: ViewDefinition
 }
 
-const FILTER_FIELD_IDS = ['status', 'priority', 'tagIds', 'title', 'dueDate'] as const
+const FILTER_FIELD_IDS = ['status', 'priority', 'tagIds', 'title', 'dueDate', 'completedAt'] as const
 const DEFAULT_FIELD_ID = 'status'
 
 const OPERATOR_LABELS: Record<FilterRule['operator'], string> = {
