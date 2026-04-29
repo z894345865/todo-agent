@@ -1,4 +1,5 @@
 import { DEFAULT_PRIORITY, DEFAULT_STATUS } from './defaults.ts'
+import { createClientId } from '../utils/id.ts'
 import type { FilterRule, SortRule, Task, TaskPriority, TaskStatus, TaskSummary } from './types.ts'
 
 const VALID_STATUSES: TaskStatus[] = ['todo', 'doing', 'done', 'blocked']
@@ -459,5 +460,5 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function randomId(): string {
-  return crypto.randomUUID()
+  return createClientId()
 }

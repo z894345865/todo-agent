@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Todo, TodoStats, Tag } from '../types/index.ts'
 import * as db from '../db/index.ts'
+import { createClientId } from '../utils/id.ts'
 
 // Event emitter for cross-framework reactivity (PageAgent tools need to trigger React re-renders)
 type Listener = () => void
@@ -51,7 +52,7 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
 
   add: async (text: string, extra?: Partial<Todo>) => {
     const todo: Todo = {
-      id: crypto.randomUUID(),
+      id: createClientId(),
       text,
       completed: false,
       createdAt: Date.now(),
@@ -100,7 +101,7 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
   },
 
   addTag: async (name: string, color: string) => {
-    const tag: Tag = { id: crypto.randomUUID(), name, color }
+    const tag: Tag = { id: createClientId(), name, color }
     await db.addTag(tag)
     const tags = await db.getAllTags()
     set({ tags })

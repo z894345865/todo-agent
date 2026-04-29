@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { TAG_COLORS } from './defaults.ts'
 import * as db from './db.ts'
+import { createClientId } from '../utils/id.ts'
 import {
   applyFilters,
   applySorts,
@@ -230,7 +231,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         }
 
         const tag: Tag = {
-          id: crypto.randomUUID(),
+          id: createClientId(),
           name: normalizedName,
           color: TAG_COLORS[data.tags.length % TAG_COLORS.length],
         }

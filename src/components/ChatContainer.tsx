@@ -3,6 +3,7 @@ import type { Message } from '../types'
 import { AgentCore, type AgentStatus } from '../agent/core'
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
+import { createClientId } from '../utils/id.ts'
 
 export function ChatContainer() {
   const [expanded, setExpanded] = useState(false)
@@ -38,7 +39,7 @@ export function ChatContainer() {
         await agentRef.sendUserMessage(content)
       } catch (e) {
         const errorMsg: Message = {
-          id: crypto.randomUUID(),
+          id: createClientId(),
           role: 'assistant',
           timestamp: Date.now(),
           type: 'error',

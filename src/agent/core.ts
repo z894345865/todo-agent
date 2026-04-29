@@ -2,6 +2,7 @@ import type { Message, TextMessage, ToolCallMessage, ToolResultMessage, ErrorMes
 import { todoTools } from './tools'
 import { SYSTEM_PROMPT } from './prompts'
 import { zodToJsonSchema } from './toolSchema'
+import { createClientId } from '../utils/id.ts'
 
 export class AbortError extends Error {
   constructor() {
@@ -51,7 +52,7 @@ export class AgentCore {
   }
 
   private newId(): string {
-    return crypto.randomUUID()
+    return createClientId()
   }
 
   async sendUserMessage(content: string) {
