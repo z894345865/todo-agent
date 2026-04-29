@@ -23,7 +23,7 @@ const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 export function toDateOnly(value: unknown): string {
   if (value instanceof Date) {
-    return value.toISOString().slice(0, 10)
+    return formatLocalDateOnly(value)
   }
 
   if (typeof value === 'string') {
@@ -34,7 +34,7 @@ export function toDateOnly(value: unknown): string {
 
     const parsed = new Date(value)
     if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toISOString().slice(0, 10)
+      return formatLocalDateOnly(parsed)
     }
   }
 
@@ -418,6 +418,13 @@ function toTimestamp(value: Date | string): string {
   }
 
   return value
+}
+
+function formatLocalDateOnly(value: Date): string {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function assertValidDateOnly(value: string, fieldName: string): void {

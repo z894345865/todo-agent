@@ -23,6 +23,12 @@ test('createTask creates default status, default tags, requested priority, and t
   assert.equal(task.updatedAt, '2026-04-27T12:00:00.000Z')
 })
 
+test('createTask stores completedAt using the local calendar day', () => {
+  const task = createTask({ title: 'Finish near midnight', status: 'done' }, new Date('2026-04-28T00:30:00+08:00'))
+
+  assert.equal(task.completedAt, '2026-04-28')
+})
+
 test('normalizeTask rejects empty titles and invalid dueDate strings', () => {
   assert.throws(() => normalizeTask({ id: '1', title: '   ' }), /title is required/)
   assert.throws(() => normalizeTask({ id: '1', title: 'Ship', dueDate: 'tomorrow' }), /dueDate must be YYYY-MM-DD/)
