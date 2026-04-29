@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "codex:todos": "node scripts/list-codex-todos.mjs",
     "test": "node --test tests/*.test.ts",
     "build": "tsc && vite build",
     "preview": "vite preview"
